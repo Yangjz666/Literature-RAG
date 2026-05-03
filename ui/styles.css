@@ -1,0 +1,393 @@
+/* =========================================================
+   CO2RR 文献 RAG Agent - 社会主义红色主题
+   风格关键词：庄重、积极、热烈、简洁、现代
+   ========================================================= */
+
+:root {
+  --red-900: #5a0000;
+  --red-800: #7a0000;
+  --red-700: #9e0000;
+  --red-600: #b00000;
+  --red-500: #c40000;
+  --red-400: #d60000;
+  --gold-500: #f5c542;
+  --gold-400: #ffd700;
+  --cream-50: #fff8ee;
+  --rose-50: #fff5f5;
+  --rose-100: #ffe8e8;
+  --gray-900: #2f2f38;
+  --gray-700: #55515a;
+  --gray-500: #88838d;
+  --white: #ffffff;
+  --shadow-sm: 0 4px 14px rgba(122, 0, 0, 0.08);
+  --shadow-md: 0 10px 28px rgba(122, 0, 0, 0.13);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
+/* ---------- 全局基底 ---------- */
+
+html,
+body,
+[data-testid="stAppViewContainer"] {
+  background:
+    radial-gradient(circle at top left, rgba(245, 197, 66, 0.18), transparent 28rem),
+    linear-gradient(180deg, var(--rose-50) 0%, var(--cream-50) 48%, #f8f8f8 100%);
+  color: var(--gray-900);
+  font-family:
+    "Microsoft YaHei",
+    "PingFang SC",
+    "Noto Sans SC",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+
+.block-container {
+  max-width: 1120px;
+  padding-top: 3.5rem;
+  padding-bottom: 4rem;
+}
+
+/* ---------- 顶部主标题区域 ---------- */
+
+h1 {
+  color: var(--red-900) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.15 !important;
+  position: relative;
+  padding-bottom: 0.9rem;
+}
+
+h1::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 5.5rem;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--red-500), var(--gold-500));
+  box-shadow: 0 0 0 4px rgba(245, 197, 66, 0.12);
+}
+
+h2,
+h3 {
+  color: var(--red-900) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+}
+
+p,
+li,
+label,
+.stMarkdown {
+  color: var(--gray-700);
+}
+
+/* ---------- 侧边栏 ---------- */
+
+[data-testid="stSidebar"] {
+  background:
+    linear-gradient(180deg, rgba(176, 0, 0, 0.96), rgba(90, 0, 0, 0.96)),
+    linear-gradient(135deg, var(--red-600), var(--red-900));
+  border-right: 1px solid rgba(255, 215, 0, 0.22);
+  box-shadow: 8px 0 28px rgba(90, 0, 0, 0.18);
+}
+
+[data-testid="stSidebar"] * {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+  color: var(--white) !important;
+}
+
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+  border-left: 4px solid var(--gold-500);
+  padding-left: 0.75rem;
+}
+
+[data-testid="stSidebar"] hr {
+  border-color: rgba(255, 215, 0, 0.28);
+}
+
+[data-testid="stSidebar"] [data-baseweb="input"] {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 215, 0, 0.44);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-testid="stSidebar"] input {
+  color: var(--gray-900) !important;
+  caret-color: var(--red-500);
+}
+
+[data-testid="stSidebar"] input::placeholder {
+  color: var(--gray-500) !important;
+}
+
+/* ---------- 内容区卡片化 ---------- */
+
+[data-testid="stVerticalBlock"] > [style*="flex-direction: column"] {
+  gap: 1rem;
+}
+
+[data-testid="stExpander"],
+[data-testid="stStatus"],
+[data-testid="stAlert"],
+[data-testid="stDataFrame"],
+[data-testid="stChatMessage"],
+div[data-testid="stForm"],
+div[data-testid="stMarkdownContainer"]:has(table) {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid rgba(196, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-testid="stChatMessage"] {
+  padding: 1rem;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+[data-testid="stChatMessage"]:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ---------- 输入框 ---------- */
+
+[data-baseweb="input"],
+[data-baseweb="textarea"] {
+  border-radius: var(--radius-md) !important;
+  border: 1px solid rgba(176, 0, 0, 0.18) !important;
+  background: var(--white) !important;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+[data-baseweb="input"]:focus-within,
+[data-baseweb="textarea"]:focus-within {
+  border-color: var(--red-500) !important;
+  box-shadow: 0 0 0 4px rgba(196, 0, 0, 0.12), var(--shadow-sm);
+}
+
+textarea,
+input {
+  color: var(--gray-900) !important;
+}
+
+/* ---------- 按钮 ---------- */
+
+.stButton > button,
+[data-testid="stBaseButton-primary"],
+[data-testid="stBaseButton-secondary"] {
+  min-height: 2.65rem;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid rgba(90, 0, 0, 0.12) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.stButton > button,
+[data-testid="stBaseButton-primary"] {
+  background: linear-gradient(135deg, var(--red-500), var(--red-700)) !important;
+  color: var(--white) !important;
+  box-shadow: 0 8px 18px rgba(196, 0, 0, 0.22);
+}
+
+.stButton > button:hover,
+[data-testid="stBaseButton-primary"]:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, var(--red-400), var(--red-800)) !important;
+  box-shadow: 0 12px 24px rgba(176, 0, 0, 0.28);
+}
+
+[data-testid="stBaseButton-secondary"] {
+  background: var(--white) !important;
+  color: var(--red-800) !important;
+}
+
+[data-testid="stBaseButton-secondary"]:hover {
+  border-color: var(--red-500) !important;
+  box-shadow: var(--shadow-md);
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  opacity: 0.55 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ---------- checkbox / progress / status ---------- */
+
+[data-testid="stCheckbox"] label {
+  color: var(--red-900) !important;
+  font-weight: 650;
+}
+
+[data-testid="stProgress"] > div > div {
+  background: linear-gradient(90deg, var(--red-500), var(--gold-500)) !important;
+}
+
+[data-testid="stStatus"] {
+  border-left: 5px solid var(--red-500) !important;
+  overflow: hidden;
+}
+
+/* ---------- 警告、成功、错误提示 ---------- */
+
+[data-testid="stAlert"] {
+  border-left-width: 5px !important;
+}
+
+[data-testid="stAlert"][kind="success"] {
+  border-left-color: #1f8f4d !important;
+}
+
+[data-testid="stAlert"][kind="warning"] {
+  border-left-color: var(--gold-500) !important;
+}
+
+[data-testid="stAlert"][kind="error"] {
+  border-left-color: var(--red-500) !important;
+}
+
+/* ---------- 表格和 Markdown 输出 ---------- */
+
+table {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+thead tr {
+  background: linear-gradient(135deg, var(--red-600), var(--red-900));
+}
+
+thead th {
+  color: var(--white) !important;
+  font-weight: 800 !important;
+  border: 0 !important;
+  padding: 0.8rem 0.9rem !important;
+}
+
+tbody td {
+  border-bottom: 1px solid rgba(176, 0, 0, 0.08) !important;
+  padding: 0.75rem 0.9rem !important;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+tbody tr:nth-child(even) td {
+  background: rgba(255, 245, 245, 0.92);
+}
+
+tbody tr:hover td {
+  background: rgba(255, 232, 232, 0.95);
+}
+
+blockquote {
+  margin: 0.9rem 0;
+  padding: 0.8rem 1rem;
+  border-left: 5px solid var(--gold-500);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: rgba(255, 248, 238, 0.9);
+  color: var(--red-900);
+}
+
+a {
+  color: var(--red-600) !important;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--red-900) !important;
+  text-decoration: underline;
+}
+
+code {
+  color: var(--red-900) !important;
+  background: rgba(255, 232, 232, 0.85) !important;
+  border: 1px solid rgba(196, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 0.12rem 0.35rem;
+}
+
+/* ---------- 顶部装饰带，模拟导航栏氛围 ---------- */
+
+[data-testid="stAppViewContainer"]::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0.55rem;
+  z-index: 999;
+  background: linear-gradient(90deg, var(--red-900), var(--red-500), var(--gold-500));
+  box-shadow: 0 4px 12px rgba(122, 0, 0, 0.22);
+}
+
+/* ---------- 响应式 ---------- */
+
+@media (max-width: 900px) {
+  .block-container {
+    padding: 2.2rem 1.1rem 3rem;
+  }
+
+  h1 {
+    font-size: 2.15rem !important;
+  }
+
+  h1::after {
+    width: 4.2rem;
+  }
+
+  [data-testid="column"] {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .block-container {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  h1 {
+    font-size: 1.75rem !important;
+  }
+
+  h2 {
+    font-size: 1.25rem !important;
+  }
+
+  .stButton > button {
+    width: 100%;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

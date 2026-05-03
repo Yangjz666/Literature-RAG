@@ -1,0 +1,7 @@
+[manager]
+prepend_keymap = [
+  { on = [ "g", "p" ], run = "cd d:/AI Project/Literature-Agent", desc = "Go to Literature-Agent" },
+  { on = [ "e" ], run = "open --interactive", desc = "Open interactively" },
+  { on = [ "E" ], run = "open", desc = "Open selected" },
+  { on = [ "." ], run = "hidden toggle", desc = "Toggle hidden files" }
+]

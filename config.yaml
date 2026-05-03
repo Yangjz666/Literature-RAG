@@ -1,0 +1,41 @@
+llm_provider: openai         # 推荐用 .env 的 LLM_PROVIDER 覆盖：openai 或 anthropic
+openai_model: ""             # 推荐用 .env 的 OPENAI_MODEL
+openai_base_url: ""          # 推荐用 .env 的 OPENAI_BASE_URL
+openai_api_key: ""           # 推荐用 .env 的 OPENAI_API_KEY
+anthropic_model: ""          # 推荐用 .env 的 ANTHROPIC_MODEL
+anthropic_base_url: ""       # 推荐用 .env 的 ANTHROPIC_BASE_URL
+anthropic_api_key: ""        # 推荐用 .env 的 ANTHROPIC_API_KEY
+llm_max_tokens: 4096
+llm_timeout_sec: 120
+
+embedding_model: text-embedding-3-small
+embedding_api_key: ""       # 可选；默认读取 EMBEDDING_API_KEY / OPENAI_API_KEY
+embedding_base_url: ""      # 可选；默认读取 EMBEDDING_BASE_URL / OPENAI_BASE_URL
+
+chroma_db_path: ./data/chroma_db
+output_dir: ./data/output
+index_manifest_path: ./data/index_manifest.json
+index_log_path: ./data/index.log
+
+ocr:
+  enabled: true
+  tesseract_cmd: ""         # Windows: "C:/Program Files/Tesseract-OCR/tesseract.exe"
+
+retrieval:
+  bm25_top_k: 20
+  vector_top_k: 20
+  rrf_k: 60
+  final_top_k: 10
+
+chunking:
+  child_chunk_size: 150
+  child_chunk_max_size: 300
+  parent_chunk_size: 800
+  overlap_sentences: 1
+
+evidence_verify:
+  fuzzy_threshold: 0.85
+
+performance:
+  pdf_parse_timeout_sec: 60
+  query_timeout_sec: 60
