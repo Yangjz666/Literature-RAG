@@ -26,6 +26,7 @@ class CandidateChunk(BaseModel):
 
 
 class SourceCitation(BaseModel):
+    citation_id: str = ""
     source_id: str = ""
     paper_name: str = ""
     filename: str | None = None
