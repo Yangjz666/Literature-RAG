@@ -47,6 +47,9 @@ self_feedback:
   enabled: false
   allow_followup_retrieval: false
 
+v2:
+  default_mode: structured_extraction
+
 chunking:
   child_chunk_size: 150
   child_chunk_max_size: 300
