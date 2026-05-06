@@ -10,19 +10,24 @@ SupportStatus = Literal["supported", "partially_supported", "unsupported"]
 
 class CandidateChunk(BaseModel):
     chunk_id: str = ""
+    parent_chunk_id: str | None = None
     text: str = ""
     paper_name: str = ""
     filename: str | None = None
     doi: str | None = None
+    title: str | None = None
+    year: int | str | None = None
     page: str | int | None = None
     section: str | None = None
     is_si: bool = False
+    retrieval_text: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
     score: float | None = None
     hit_child_ids: list[str] = Field(default_factory=list)
     bm25_rank: int | None = None
     vector_rank: int | None = None
     rrf_score: float | None = None
+    rerank_score: float | None = None
 
 
 class SourceCitation(BaseModel):
