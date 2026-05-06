@@ -48,6 +48,7 @@ self_feedback:
   allow_followup_retrieval: false
 
 v2:
+  mode_enabled: true
   default_mode: structured_extraction
 
 chunking:

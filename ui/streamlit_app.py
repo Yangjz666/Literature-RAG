@@ -14,6 +14,8 @@ from app.generator import generate_markdown_output, save_output
 from app.indexer import LiteratureIndex, get_changed_files, get_file_fingerprint, load_manifest, save_manifest
 from app.ingest import load_folder
 from app.llm_client import LLMClient
+from app.pipeline_v2 import run_synthesis_pipeline
+from app.query_router import QueryMode, detect_query_mode
 from app.retriever import hybrid_retrieve
 from app.verifier import verify_batch
 
@@ -57,6 +59,22 @@ def get_provider_and_model(config: dict) -> tuple[str, str]:
     else:
         model = os.environ.get("OPENAI_MODEL", config.get("openai_model", ""))
     return provider, model
+
+
+MODE_LABELS = {
+    "自动": None,
+    "结构化抽取": QueryMode.STRUCTURED_EXTRACTION.value,
+    "文献综合": QueryMode.SYNTHESIS.value,
+    "精读解释": QueryMode.DEEP_READING.value,
+}
+
+
+def v2_mode_enabled(config: dict) -> bool:
+    return bool((config.get("v2") or {}).get("mode_enabled", False))
+
+
+def selected_query_mode(query: str, label: str, config: dict) -> QueryMode:
+    return detect_query_mode(query, explicit_mode=MODE_LABELS[label], config=config)
 
 
 st.set_page_config(page_title="CO2RR 文献 RAG Agent", layout="wide")
@@ -184,10 +202,51 @@ query = st.text_area(
     height=100,
 )
 
+mode_label = "结构化抽取"
+if v2_mode_enabled(config):
+    mode_label = st.selectbox(
+        "查询模式",
+        options=list(MODE_LABELS),
+        index=1,
+        help="默认保持结构化抽取；自动模式会根据问题判断是否进入文献综合或精读解释。",
+    )
+
 if st.button("开始查询", type="primary", disabled=not query.strip()):
     if index._collection.count() == 0:
         st.warning("文献索引为空，请先建立索引。")
     else:
+        query_mode = selected_query_mode(query, mode_label, config)
+        if query_mode == QueryMode.SYNTHESIS:
+            with st.status("文献综合中...", expanded=True) as status_box:
+                st.write("**[1/6]** 本地检索...")
+                st.write("**[2/6]** rerank...")
+                st.write("**[3/6]** 构建引用上下文...")
+                st.write("**[4/6]** 生成综合回答...")
+                st.write("**[5/6]** claim verification...")
+                st.write("**[6/6]** 生成报告...")
+                try:
+                    result = run_synthesis_pipeline(query, index, llm, config)
+                except RuntimeError as e:
+                    status_box.update(label="文献综合失败", state="error")
+                    st.error(str(e))
+                    st.stop()
+                status_box.update(label="文献综合完成", state="complete")
+
+            markdown_path = result.metadata.get("markdown_path")
+            if markdown_path:
+                st.caption(f"已保存到：`{markdown_path}`")
+                try:
+                    st.markdown(Path(markdown_path).read_text(encoding="utf-8"))
+                except OSError:
+                    st.warning("报告已生成，但无法读取保存的 Markdown 文件。")
+            else:
+                st.warning("文献综合完成，但未返回报告保存路径。")
+            st.stop()
+
+        if query_mode == QueryMode.DEEP_READING:
+            st.info("精读解释模式尚未完整实现。本阶段仅完成模式选择与路由。")
+            st.stop()
+
         with st.status("查询中...", expanded=True) as status_box:
             st.write("**[1/4]** 检索相关段落...")
             try:
