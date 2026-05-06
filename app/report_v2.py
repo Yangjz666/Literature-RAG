@@ -83,11 +83,15 @@ def _render_structured_table(result: SynthesisResult) -> str:
 
 def _supported_summary(result: SynthesisResult) -> str:
     supported_claims = [
-        claim for claim in result.claims if claim.support_status != "unsupported"
+        claim
+        for claim in result.claims
+        if claim.support_status == "supported"
+        and not claim.is_agent_analysis
+        and not claim.is_agent_inference
     ]
     if supported_claims:
         return "\n".join(f"- {claim.claim} {_claim_sources(claim)}" for claim in supported_claims)
-    if result.answer.strip():
+    if not result.claims and result.answer.strip():
         return result.answer.strip()
     return "_暂无可由原文证据支持的综合回答。_"
 

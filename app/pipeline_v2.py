@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from app.claim_verifier import verify_claims
 from app.context_builder import build_v2_context
 from app.report_v2 import generate_markdown_v2, save_markdown_v2
 from app.reranker import rerank_candidates
@@ -32,6 +33,7 @@ def run_synthesis_pipeline(
     ranked = rerank_candidates(query, candidates, config)
     context_text, citations = build_v2_context(query, ranked, config)
     result = synthesize_with_citations(query, context_text, citations, llm_client, config)
+    result.claims = verify_claims(result.claims, result.citations, llm_client=None, config=config)
 
     markdown = generate_markdown_v2(result)
     markdown_path = save_markdown_v2(markdown, query, _output_dir(config))
@@ -40,5 +42,6 @@ def run_synthesis_pipeline(
         "markdown_path": markdown_path,
         "candidate_count": len(candidates),
         "context_citation_count": len(citations),
+        "claims_verified": True,
     }
     return result

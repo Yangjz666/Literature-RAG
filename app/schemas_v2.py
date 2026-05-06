@@ -53,6 +53,7 @@ class ClaimRecord(BaseModel):
     confidence: str | None = None
     rationale: str = ""
     structured_fields: dict[str, Any] = Field(default_factory=dict)
+    is_agent_analysis: bool = False
     is_agent_inference: bool = False
 
 

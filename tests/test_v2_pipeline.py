@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import app.pipeline_v2 as pipeline_v2
 from app.pipeline_v2 import run_synthesis_pipeline
 
 
@@ -124,3 +125,55 @@ def test_pipeline_uses_fakes_without_real_api_or_real_index(tmp_path):
     assert index.vector_called is True
     assert index.bm25_called is True
     assert llm.calls >= 1
+
+
+def test_pipeline_calls_verify_claims(monkeypatch, tmp_path):
+    called = {"value": False}
+
+    def fake_verify_claims(claims, citations, llm_client=None, config=None):
+        called["value"] = True
+        return claims
+
+    monkeypatch.setattr(pipeline_v2, "verify_claims", fake_verify_claims)
+    llm = FakeLLM(
+        json.dumps(
+            {
+                "answer": "Ag NPs were prepared by chemical reduction. [S1]",
+                "claims": [
+                    {
+                        "claim": "Ag NPs were prepared by chemical reduction.",
+                        "support_status": "supported",
+                        "citation_ids": ["S1"],
+                    }
+                ],
+            }
+        )
+    )
+
+    run_synthesis_pipeline("query", FakeIndex(), llm, {"output_dir": str(tmp_path)})
+
+    assert called["value"] is True
+
+
+def test_unsupported_claim_does_not_enter_markdown_main_answer(tmp_path):
+    llm = FakeLLM(
+        json.dumps(
+            {
+                "answer": "The catalyst reached 99% FE. [S1]",
+                "claims": [
+                    {
+                        "claim": "The catalyst reached 99% FE.",
+                        "support_status": "supported",
+                        "citation_ids": ["S1"],
+                    }
+                ],
+            }
+        )
+    )
+
+    result = run_synthesis_pipeline("query", FakeIndex(), llm, {"output_dir": str(tmp_path)})
+    markdown = Path(result.metadata["markdown_path"]).read_text(encoding="utf-8")
+    answer_body = markdown.split("## 二、关键结论与证据支持状态", maxsplit=1)[0]
+
+    assert result.claims[0].support_status != "supported"
+    assert "99% FE" not in answer_body
