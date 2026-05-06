@@ -47,6 +47,7 @@ class SourceCitation(BaseModel):
 class ClaimRecord(BaseModel):
     claim: str = ""
     support_status: SupportStatus = "unsupported"
+    citation_ids: list[str] = Field(default_factory=list)
     source_ids: list[str] = Field(default_factory=list)
     evidence: list[SourceCitation] = Field(default_factory=list)
     confidence: str | None = None

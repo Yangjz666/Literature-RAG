@@ -26,6 +26,26 @@ retrieval:
   vector_top_k: 20
   rrf_k: 60
   final_top_k: 10
+  candidate_top_k: 80
+  max_chunks_per_paper: 3
+  max_context_tokens: 12000
+
+context_budget:
+  max_chunks_per_paper: 3
+  max_context_tokens: 12000
+
+reranker:
+  enabled: false
+  fallback_to_rrf: true
+  final_top_n: 10
+  max_chunks_per_paper: 3
+
+external_metadata:
+  enabled: false
+
+self_feedback:
+  enabled: false
+  allow_followup_retrieval: false
 
 chunking:
   child_chunk_size: 150

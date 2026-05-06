@@ -28,7 +28,7 @@ def _claim_sources(claim: ClaimRecord) -> str:
     for citation in claim.evidence:
         if citation.source_id:
             labels.append(_citation_label(citation))
-    for source_id in claim.source_ids:
+    for source_id in [*claim.citation_ids, *claim.source_ids]:
         label = source_id if source_id.startswith("[") else f"[{source_id}]"
         if label not in labels:
             labels.append(label)
