@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Local generated ChromaDB index
+/data/chroma_db/
