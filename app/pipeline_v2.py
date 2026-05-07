@@ -6,6 +6,7 @@ from typing import Any
 from app.claim_verifier import verify_claims
 from app.context_builder import build_v2_context
 from app.feedback import run_self_feedback
+from app.followup_retriever import run_followup_retrieval
 from app.query_router import detect_query_mode
 from app.report_v2 import generate_markdown_v2, save_markdown_v2
 from app.reranker import rerank_candidates
@@ -39,6 +40,25 @@ def run_synthesis_pipeline(
     result.claims = verify_claims(result.claims, result.citations, llm_client=None, config=config)
     feedback = run_self_feedback(query, result, result.citations, llm_client=llm_client, config=config)
     result.feedback_trace.append(feedback)
+    followup_chunks = []
+    if feedback.need_followup_retrieval and (config.get("self_feedback") or {}).get("allow_followup_retrieval", False):
+        try:
+            existing_chunk_ids = {candidate.chunk_id for candidate in ranked}
+            followup_chunks = run_followup_retrieval(
+                feedback,
+                index,
+                llm_client,
+                config,
+                existing_chunk_ids=existing_chunk_ids,
+            )
+            feedback.followup_chunk_ids = [chunk.chunk_id for chunk in followup_chunks]
+            if followup_chunks:
+                ranked = [*ranked, *followup_chunks]
+                context_text, citations = build_v2_context(query, ranked, config)
+                result.metadata["followup_context_citation_count"] = len(citations)
+        except Exception as exc:
+            feedback.followup_error = str(exc)
+            feedback.notes.append(f"follow-up retrieval failed: {exc}")
 
     markdown = generate_markdown_v2(result)
     markdown_path = save_markdown_v2(markdown, query, _output_dir(config))
@@ -50,5 +70,6 @@ def run_synthesis_pipeline(
         "claims_verified": True,
         "query_mode": query_mode.value,
         "feedback_iterations": len(result.feedback_trace),
+        "followup_chunk_count": len(followup_chunks),
     }
     return result

@@ -231,3 +231,93 @@ def test_pipeline_feedback_failure_does_not_crash(tmp_path):
 
     assert result.feedback_trace[0].notes
     assert Path(result.metadata["markdown_path"]).exists()
+
+
+def test_pipeline_calls_followup_retriever_when_feedback_requests_it(monkeypatch, tmp_path):
+    called = {"value": False}
+
+    def fake_followup_retrieval(feedback, index, llm_client, config, existing_chunk_ids=None):
+        called["value"] = True
+        return []
+
+    monkeypatch.setattr(pipeline_v2, "run_followup_retrieval", fake_followup_retrieval)
+    llm = FakeLLM(json.dumps({"answer": "Answer. [S1]", "claims": []}))
+
+    def feedback_chat(prompt, json_mode=False):
+        llm.calls += 1
+        if "关键词" in prompt:
+            return json.dumps(["Ag NPs"])
+        if "自检模块" in prompt:
+            return json.dumps({"need_followup_retrieval": True, "followup_queries": ["electrolyte"]})
+        return llm.response
+
+    llm.chat = feedback_chat
+
+    result = run_synthesis_pipeline(
+        "query",
+        FakeIndex(),
+        llm,
+        {"output_dir": str(tmp_path), "self_feedback": {"enabled": True, "allow_followup_retrieval": True}},
+    )
+
+    assert called["value"] is True
+    assert result.metadata["followup_chunk_count"] == 0
+
+
+def test_pipeline_followup_results_enter_trace(monkeypatch, tmp_path):
+    def fake_followup_retrieval(feedback, index, llm_client, config, existing_chunk_ids=None):
+        from app.schemas_v2 import CandidateChunk
+
+        return [CandidateChunk(chunk_id="p2", text="Follow-up electrolyte evidence.", paper_name="FollowPaper")]
+
+    monkeypatch.setattr(pipeline_v2, "run_followup_retrieval", fake_followup_retrieval)
+    llm = FakeLLM(json.dumps({"answer": "Answer. [S1]", "claims": []}))
+
+    def feedback_chat(prompt, json_mode=False):
+        llm.calls += 1
+        if "关键词" in prompt:
+            return json.dumps(["Ag NPs"])
+        if "自检模块" in prompt:
+            return json.dumps({"need_followup_retrieval": True, "followup_queries": ["electrolyte"]})
+        return llm.response
+
+    llm.chat = feedback_chat
+
+    result = run_synthesis_pipeline(
+        "query",
+        FakeIndex(),
+        llm,
+        {"output_dir": str(tmp_path), "self_feedback": {"enabled": True, "allow_followup_retrieval": True}},
+    )
+
+    assert result.feedback_trace[0].followup_chunk_ids == ["p2"]
+    assert result.metadata["followup_chunk_count"] == 1
+    assert result.metadata["followup_context_citation_count"] >= 1
+
+
+def test_pipeline_followup_failure_does_not_crash(monkeypatch, tmp_path):
+    def failing_followup(*args, **kwargs):
+        raise RuntimeError("followup failed")
+
+    monkeypatch.setattr(pipeline_v2, "run_followup_retrieval", failing_followup)
+    llm = FakeLLM(json.dumps({"answer": "Answer. [S1]", "claims": []}))
+
+    def feedback_chat(prompt, json_mode=False):
+        llm.calls += 1
+        if "关键词" in prompt:
+            return json.dumps(["Ag NPs"])
+        if "自检模块" in prompt:
+            return json.dumps({"need_followup_retrieval": True, "followup_queries": ["electrolyte"]})
+        return llm.response
+
+    llm.chat = feedback_chat
+
+    result = run_synthesis_pipeline(
+        "query",
+        FakeIndex(),
+        llm,
+        {"output_dir": str(tmp_path), "self_feedback": {"enabled": True, "allow_followup_retrieval": True}},
+    )
+
+    assert result.feedback_trace[0].followup_error == "followup failed"
+    assert Path(result.metadata["markdown_path"]).exists()

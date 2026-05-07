@@ -67,6 +67,8 @@ class FeedbackRecord(BaseModel):
     revision_instructions: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
     max_iterations: int = 1
+    followup_chunk_ids: list[str] = Field(default_factory=list)
+    followup_error: str | None = None
 
 
 class SynthesisResult(BaseModel):
