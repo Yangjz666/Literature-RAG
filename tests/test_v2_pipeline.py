@@ -93,6 +93,7 @@ def test_pipeline_saves_markdown_to_temp_dir(tmp_path):
     assert markdown_path.exists()
     assert markdown_path.parent == tmp_path
     assert "Answer. [S1]" in markdown_path.read_text(encoding="utf-8")
+    assert result.feedback_trace
 
 
 def test_empty_candidates_or_context_returns_conservative_result(tmp_path):
@@ -125,6 +126,7 @@ def test_pipeline_uses_fakes_without_real_api_or_real_index(tmp_path):
     assert index.vector_called is True
     assert index.bm25_called is True
     assert llm.calls >= 1
+    assert result.feedback_trace[0].notes == ["self_feedback disabled"]
 
 
 def test_pipeline_calls_verify_claims(monkeypatch, tmp_path):
@@ -177,3 +179,55 @@ def test_unsupported_claim_does_not_enter_markdown_main_answer(tmp_path):
 
     assert result.claims[0].support_status != "supported"
     assert "99% FE" not in answer_body
+
+
+def test_pipeline_records_feedback_trace_when_enabled(tmp_path):
+    llm = FakeLLM(
+        json.dumps(
+            {
+                "answer": "Ag NPs were prepared by chemical reduction. [S1]",
+                "claims": [
+                    {
+                        "claim": "Ag NPs were prepared by chemical reduction.",
+                        "support_status": "supported",
+                        "citation_ids": ["S1"],
+                    }
+                ],
+            }
+        )
+    )
+
+    def feedback_chat(prompt, json_mode=False):
+        llm.calls += 1
+        if "关键词" in prompt:
+            return json.dumps(["Ag NPs"])
+        if "自检模块" in prompt:
+            return json.dumps({"missing_aspects": ["electrolyte"], "revision_instructions": ["Note missing electrolyte"]})
+        return llm.response
+
+    llm.chat = feedback_chat
+
+    result = run_synthesis_pipeline("query", FakeIndex(), llm, {"output_dir": str(tmp_path), "self_feedback": {"enabled": True}})
+
+    assert result.feedback_trace[0].missing_aspects == ["electrolyte"]
+    markdown = Path(result.metadata["markdown_path"]).read_text(encoding="utf-8")
+    assert "electrolyte" in markdown
+
+
+def test_pipeline_feedback_failure_does_not_crash(tmp_path):
+    llm = FakeLLM(json.dumps({"answer": "Answer. [S1]", "claims": []}))
+
+    def feedback_chat(prompt, json_mode=False):
+        llm.calls += 1
+        if "关键词" in prompt:
+            return json.dumps(["Ag NPs"])
+        if "自检模块" in prompt:
+            return "not json"
+        return llm.response
+
+    llm.chat = feedback_chat
+
+    result = run_synthesis_pipeline("query", FakeIndex(), llm, {"output_dir": str(tmp_path), "self_feedback": {"enabled": True}})
+
+    assert result.feedback_trace[0].notes
+    assert Path(result.metadata["markdown_path"]).exists()

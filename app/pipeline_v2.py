@@ -5,6 +5,7 @@ from typing import Any
 
 from app.claim_verifier import verify_claims
 from app.context_builder import build_v2_context
+from app.feedback import run_self_feedback
 from app.query_router import detect_query_mode
 from app.report_v2 import generate_markdown_v2, save_markdown_v2
 from app.reranker import rerank_candidates
@@ -36,6 +37,8 @@ def run_synthesis_pipeline(
     context_text, citations = build_v2_context(query, ranked, config)
     result = synthesize_with_citations(query, context_text, citations, llm_client, config)
     result.claims = verify_claims(result.claims, result.citations, llm_client=None, config=config)
+    feedback = run_self_feedback(query, result, result.citations, llm_client=llm_client, config=config)
+    result.feedback_trace.append(feedback)
 
     markdown = generate_markdown_v2(result)
     markdown_path = save_markdown_v2(markdown, query, _output_dir(config))
@@ -46,5 +49,6 @@ def run_synthesis_pipeline(
         "context_citation_count": len(citations),
         "claims_verified": True,
         "query_mode": query_mode.value,
+        "feedback_iterations": len(result.feedback_trace),
     }
     return result

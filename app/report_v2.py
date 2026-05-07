@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from app.schemas_v2 import ClaimRecord, SourceCitation, SynthesisResult
+from app.schemas_v2 import ClaimRecord, FeedbackRecord, SourceCitation, SynthesisResult
 
 
 def _cell(value: Any) -> str:
@@ -101,9 +101,37 @@ def _render_uncertainties(result: SynthesisResult) -> str:
     items.extend(
         claim.claim for claim in result.claims if claim.support_status == "unsupported" and claim.claim
     )
+    for feedback in result.feedback_trace:
+        items.extend(feedback.unsupported_claims)
+        items.extend(feedback.missing_aspects)
+        items.extend(feedback.citation_mismatch)
     if not items:
         return "_暂无不确定项。_"
     return "\n".join(f"- {item}" for item in items)
+
+
+def _render_feedback_findings(feedback: FeedbackRecord) -> list[str]:
+    lines: list[str] = []
+    if feedback.unsupported_claims:
+        lines.append("Self-feedback unsupported claims: " + "; ".join(feedback.unsupported_claims))
+    if feedback.missing_aspects:
+        lines.append("Self-feedback missing aspects: " + "; ".join(feedback.missing_aspects))
+    if feedback.citation_mismatch:
+        lines.append("Self-feedback citation mismatch: " + "; ".join(feedback.citation_mismatch))
+    if feedback.mixed_paper_conditions:
+        lines.append("Self-feedback mixed paper conditions: " + "; ".join(feedback.mixed_paper_conditions))
+    if feedback.need_followup_retrieval and feedback.followup_queries:
+        lines.append("Follow-up retrieval suggested but not executed: " + "; ".join(feedback.followup_queries))
+    if feedback.revision_instructions:
+        lines.append("Revision instructions: " + "; ".join(feedback.revision_instructions))
+    return lines
+
+
+def _render_agent_analysis(result: SynthesisResult) -> str:
+    lines = [result.agent_analysis] if result.agent_analysis else ["_暂无 Agent 分析。_"]
+    for feedback in result.feedback_trace:
+        lines.extend(_render_feedback_findings(feedback))
+    return "\n".join(line for line in lines if line)
 
 
 def _collect_citations(result: SynthesisResult) -> list[SourceCitation]:
@@ -172,7 +200,7 @@ def generate_markdown_v2(result: SynthesisResult) -> str:
         "",
         "## 五、Agent 分析",
         "",
-        result.agent_analysis or "_暂无 Agent 分析。_",
+        _render_agent_analysis(result),
         "",
         "## 六、不确定项",
         "",

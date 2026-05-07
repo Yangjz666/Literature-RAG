@@ -57,6 +57,18 @@ class ClaimRecord(BaseModel):
     is_agent_inference: bool = False
 
 
+class FeedbackRecord(BaseModel):
+    unsupported_claims: list[str] = Field(default_factory=list)
+    missing_aspects: list[str] = Field(default_factory=list)
+    citation_mismatch: list[str] = Field(default_factory=list)
+    mixed_paper_conditions: list[str] = Field(default_factory=list)
+    need_followup_retrieval: bool = False
+    followup_queries: list[str] = Field(default_factory=list)
+    revision_instructions: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+    max_iterations: int = 1
+
+
 class SynthesisResult(BaseModel):
     query: str = ""
     answer: str = ""
@@ -66,4 +78,5 @@ class SynthesisResult(BaseModel):
     literature_analysis: str = ""
     agent_analysis: str = ""
     uncertainties: list[str] = Field(default_factory=list)
+    feedback_trace: list[FeedbackRecord] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
