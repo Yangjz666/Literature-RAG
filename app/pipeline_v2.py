@@ -7,6 +7,7 @@ from app.claim_verifier import verify_claims
 from app.context_builder import build_v2_context
 from app.feedback import run_self_feedback
 from app.followup_retriever import run_followup_retrieval
+from app.metadata_enricher import enrich_metadata
 from app.query_router import detect_query_mode
 from app.report_v2 import generate_markdown_v2, save_markdown_v2
 from app.reranker import rerank_candidates
@@ -38,6 +39,20 @@ def run_synthesis_pipeline(
     context_text, citations = build_v2_context(query, ranked, config)
     result = synthesize_with_citations(query, context_text, citations, llm_client, config)
     result.claims = verify_claims(result.claims, result.citations, llm_client=None, config=config)
+    external_metadata_records = []
+    if (config.get("external_metadata") or {}).get("enabled", False):
+        for citation in result.citations:
+            identifier = citation.doi or citation.paper_name
+            if not identifier:
+                continue
+            metadata = enrich_metadata(identifier, config)
+            if metadata is not None:
+                external_metadata_records.append(metadata)
+        result.metadata["external_metadata_count"] = len(external_metadata_records)
+        result.metadata["external_metadata"] = [
+            metadata.model_dump() if hasattr(metadata, "model_dump") else metadata.dict()
+            for metadata in external_metadata_records
+        ]
     feedback = run_self_feedback(query, result, result.citations, llm_client=llm_client, config=config)
     result.feedback_trace.append(feedback)
     followup_chunks = []

@@ -42,6 +42,7 @@ reranker:
 
 external_metadata:
   enabled: false
+  cache_path: ./data/external_metadata_cache.json
 
 self_feedback:
   enabled: false

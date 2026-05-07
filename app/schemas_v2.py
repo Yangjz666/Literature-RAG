@@ -71,6 +71,18 @@ class FeedbackRecord(BaseModel):
     followup_error: str | None = None
 
 
+class ExternalMetadata(BaseModel):
+    title: str | None = None
+    authors: list[str] = Field(default_factory=list)
+    year: int | str | None = None
+    venue: str | None = None
+    abstract: str | None = None
+    citation_count: int | None = None
+    doi: str | None = None
+    source: str | None = None
+    notes: list[str] = Field(default_factory=list)
+
+
 class SynthesisResult(BaseModel):
     query: str = ""
     answer: str = ""
