@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 
 load_env_file(Path(__file__).resolve().parent.parent / ".env")
 
+DEFAULT_EMBEDDING_MODEL = "text-embedding-v4"
+DEFAULT_EMBEDDING_DIM = 1024
+DEFAULT_EMBEDDING_BATCH_SIZE = 10
+EMBEDDING_COLLECTION_NAME = "literature_chunks"
+
 
 def get_file_fingerprint(path: str) -> str:
     stat = os.stat(path)
@@ -63,44 +68,44 @@ class LiteratureIndex:
         self.embed_model_name = (
             os.environ.get("EMBEDDING_MODEL")
             or config.get("embedding_model")
-            or "text-embedding-3-small"
+            or DEFAULT_EMBEDDING_MODEL
+        )
+        self.embedding_dim = self._int_config(
+            "EMBEDDING_DIM",
+            "embedding_dim",
+            DEFAULT_EMBEDDING_DIM,
+            legacy_keys=("embedding_dimension", "embedding_dimensions"),
+        )
+        self.embedding_batch_size = min(
+            self._int_config("EMBEDDING_BATCH_SIZE", "embedding_batch_size", DEFAULT_EMBEDDING_BATCH_SIZE),
+            DEFAULT_EMBEDDING_BATCH_SIZE,
         )
 
         import chromadb
 
         os.makedirs(self.chroma_path, exist_ok=True)
         self._chroma = chromadb.PersistentClient(path=self.chroma_path)
-        self._collection = self._chroma.get_or_create_collection("literature_chunks")
+        self._collection = self._chroma.get_or_create_collection(
+            EMBEDDING_COLLECTION_NAME,
+            metadata={
+                "embedding_model": self.embed_model_name,
+                "embedding_dim": self.embedding_dim,
+            },
+        )
+        self._validate_collection_embedding_config()
 
-        # Embedding 仍然使用 OpenAI-compatible /v1/embeddings。
-        # 即使 LLM_PROVIDER=anthropic，也需要给 embedding 单独配置一个 OpenAI-compatible 通道。
-        api_key = (
-            config.get("embedding_api_key")
-            or os.environ.get("EMBEDDING_API_KEY")
-            or config.get("openai_api_key")
-            or os.environ.get("OPENAI_API_KEY")
-            or config.get("anthropic_api_key")
-            or os.environ.get("ANTHROPIC_API_KEY")
-        )
-        base_url = (
-            config.get("embedding_base_url")
-            or os.environ.get("EMBEDDING_BASE_URL")
-            or config.get("openai_base_url")
-            or os.environ.get("OPENAI_BASE_URL")
-        )
-        if not base_url:
-            anthropic_base_url = config.get("anthropic_base_url") or os.environ.get("ANTHROPIC_BASE_URL")
-            if anthropic_base_url:
-                base_url = anthropic_base_url.rstrip("/") + "/v1"
+        # Embedding 使用独立的 OpenAI-compatible /v1/embeddings 通道，不复用问答模型配置。
+        api_key = os.environ.get("EMBEDDING_API_KEY") or config.get("embedding_api_key")
+        base_url = os.environ.get("EMBEDDING_BASE_URL") or config.get("embedding_base_url")
         if not api_key:
             raise RuntimeError(
-                "Embedding API Key 未配置。请设置 EMBEDDING_API_KEY，"
-                "或设置 OPENAI_API_KEY，因为向量索引使用 OpenAI-compatible embeddings。"
+                "Embedding API Key 未配置。请在 .env 中设置 EMBEDDING_API_KEY，"
+                "例如填写阿里云百炼 API Key。"
             )
         if not base_url:
             raise RuntimeError(
-                "Embedding Base URL 未配置。请设置 EMBEDDING_BASE_URL，"
-                "或设置 OPENAI_BASE_URL，例如 https://你的中转站地址/v1。"
+                "Embedding Base URL 未配置。请在 .env 中设置 EMBEDDING_BASE_URL，"
+                "例如 https://dashscope.aliyuncs.com/compatible-mode/v1。"
             )
         self._openai = OpenAI(api_key=api_key, base_url=base_url)
 
@@ -114,26 +119,73 @@ class LiteratureIndex:
         self._load_bm25()
         self._load_parent_store()
 
-    def _embed_texts(self, texts: list[str]) -> list[list[float]]:
+    def _int_config(
+        self,
+        env_name: str,
+        config_key: str,
+        default: int,
+        legacy_keys: tuple[str, ...] = (),
+    ) -> int:
+        raw = os.environ.get(env_name) or self.config.get(config_key)
+        if raw is None:
+            for key in legacy_keys:
+                if self.config.get(key) is not None:
+                    raw = self.config[key]
+                    break
+        if raw in (None, ""):
+            return default
         try:
-            resp = self._openai.embeddings.create(
-                model=self.embed_model_name,
-                input=texts,
-            )
+            return int(raw)
+        except (TypeError, ValueError) as e:
+            raise RuntimeError(f"{env_name} / {config_key} 必须是整数，当前值为 {raw!r}。") from e
+
+    def _validate_collection_embedding_config(self) -> None:
+        count = self._collection.count()
+        if count == 0:
+            return
+
+        metadata = self._collection.metadata or {}
+        stored_model = metadata.get("embedding_model")
+        stored_dim = metadata.get("embedding_dim")
+        if stored_model == self.embed_model_name and int(stored_dim or 0) == self.embedding_dim:
+            return
+
+        raise RuntimeError(
+            "当前 Chroma 向量库已存在，但 embedding 配置与当前配置不一致或缺少元数据。"
+            f"当前配置：model={self.embed_model_name}, dim={self.embedding_dim}；"
+            f"向量库元数据：model={stored_model}, dim={stored_dim}。"
+            f"请先备份或删除旧向量库目录 {self.chroma_path}，然后重新入库。"
+        )
+
+    def _embed_texts(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+
+        embeddings: list[list[float]] = []
+        try:
+            for start in range(0, len(texts), self.embedding_batch_size):
+                batch = texts[start:start + self.embedding_batch_size]
+                resp = self._openai.embeddings.create(
+                    model=self.embed_model_name,
+                    input=batch,
+                    dimensions=self.embedding_dim,
+                    encoding_format="float",
+                )
+                embeddings.extend(item.embedding for item in resp.data)
         except RateLimitError as e:
             raise RuntimeError(
-                "OpenAI Embeddings API 额度不足或触发限流，无法建立/查询向量索引。"
-                "请检查账号 Billing/Usage，或更换一个有可用额度的 API Key。"
+                "Embedding API 额度不足或触发限流，无法建立/查询向量索引。"
+                "请检查阿里云百炼账号额度，或稍后重试。"
             ) from e
         except OpenAIError as e:
             raise RuntimeError(
                 "Embedding API 调用失败。当前模型为 "
-                f"{self.embed_model_name!r}，请确认中转站支持这个 embedding 模型；"
+                f"{self.embed_model_name!r}，维度为 {self.embedding_dim}；"
                 "如果报 model_not_found，请在 .env 中修改 EMBEDDING_MODEL，"
-                "或单独配置 EMBEDDING_API_KEY / EMBEDDING_BASE_URL 到支持 embeddings 的通道。"
+                "并确认 EMBEDDING_API_KEY / EMBEDDING_BASE_URL 指向支持 embeddings 的 OpenAI-compatible 通道。"
                 f"\n原始错误：{e}"
             ) from e
-        return [item.embedding for item in resp.data]
+        return embeddings
 
     # ── BM25 持久化 ──────────────────────────────────────────────────────────
 
