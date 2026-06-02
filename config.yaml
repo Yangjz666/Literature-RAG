@@ -17,6 +17,8 @@ embedding_batch_size: 10
 chroma_db_path: ./data/chroma_db
 output_dir: ./data/output
 index_manifest_path: ./data/index_manifest.json
+parse_report_dir: ./data/parse_reports
+index_status_path: ./data/index_status.json
 index_log_path: ./data/index.log
 
 ocr:

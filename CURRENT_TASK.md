@@ -2,14 +2,17 @@
 
 ## 1. 当前任务
 
-生成或更新项目上下文说明文件，让新的 GPT / Codex / Claude 能快速理解 CO2RR Literature RAG Agent 当前状态。
+实现 `specs/001-library-index-transparency/tasks.md` 的 MVP 范围：Phase 1、Phase 2 和 User Story 1。
 
-本次任务只允许新增或更新：
+本次实现范围：
 
-- `PROJECT_CONTEXT.md`
-- `CURRENT_TASK.md`
+- `app/parse_report.py`：parse_report 基础数据结构、保存、读取、列表和 diff。
+- `app/index_status.py`：index_status 基础数据结构、保存、读取和操作摘要。
+- `app/document_library.py`：从本地 PDF/SI 目录、`index_manifest`、parse_report、index_status 聚合文献列表。
+- `ui/streamlit_app.py`：新增“文献库管理”入口和列表页。
+- `tests/test_parse_report.py`、`tests/test_index_status.py`、`tests/test_document_library.py`：MVP 基础测试。
 
-本次任务不修改业务代码。
+本次暂不实现文献详情页、单篇重新解析、单篇重建索引、删除文献、完整 Debug Trace、citation verification、FastAPI、Docker 或数据库。
 
 ## 2. 当前审计结论
 
@@ -66,21 +69,21 @@
 
 ## 7. 本次验证状态
 
-已尝试运行测试：
+本次 MVP 实现验证：
 
 ```bash
-pytest -q
-python -m pytest -q
-python3 -m pytest -q
+.venv/bin/pytest tests/test_parse_report.py tests/test_index_status.py tests/test_document_library.py -q
+PYTHONPATH=. .venv/bin/pytest tests/test_acceptance.py -k "changed_files or manifest_saved" -q
+PYTHONPATH=. .venv/bin/pytest tests/test_acceptance.py::TestChunker -q
+python3 -m py_compile app/parse_report.py app/index_status.py app/document_library.py app/chunker.py app/indexer.py ui/streamlit_app.py
 ```
 
 结果：
 
-- `pytest` 命令不存在。
-- `python` 命令不存在。
-- `python3` 存在，但未安装 pytest：`No module named pytest`。
-
-因此，本次未完成自动化测试验证。当前文档状态判断来自代码和文档静态审计。
+- 新增 MVP 测试：15 passed。
+- 现有 manifest 兼容测试：1 passed，38 deselected。
+- 现有 chunker 兼容测试：4 passed。
+- 语法编译检查通过。
 
 ## 8. 下一步最适合开发的小功能
 
@@ -107,4 +110,3 @@ python3 -m pytest -q
 3. V2 文献综合端到端冒烟测试：使用小型 PDF fixture 或本地样本文献验证索引、检索、生成、保存。
 4. Debug Trace 最小面板：先展示 BM25 / vector / RRF / final chunks，而不是一次性做完整 V3 管理后台。
 5. 完善 self-feedback 修订闭环：只有在 V2 端到端稳定后再做。
-

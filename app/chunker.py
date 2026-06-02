@@ -121,6 +121,10 @@ def chunk_paper(paper: dict, child_max: int = 300, parent_max: int = 800) -> dic
             "section": "",
             "is_si": paper.get("is_si", False),
         }
+        if paper.get("document_id"):
+            base_meta["document_id"] = paper["document_id"]
+        if paper.get("main_document_id"):
+            base_meta["main_document_id"] = paper["main_document_id"]
         result = split_with_parent_child(
             page_info["text"],
             metadata=base_meta,

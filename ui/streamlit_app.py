@@ -11,7 +11,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.chunker import chunk_paper
 from app.extractor import detect_query_type, extract_mechanism_info, extract_synthesis_info, extract_test_conditions
 from app.generator import generate_markdown_output, save_output
-from app.indexer import LiteratureIndex, get_changed_files, get_file_fingerprint, load_manifest, save_manifest
+from app.document_library import list_document_library
+from app.indexer import LiteratureIndex, build_manifest_entry, get_changed_files, load_manifest, save_manifest
 from app.ingest import load_folder
 from app.llm_client import LLMClient
 from app.pipeline_v2 import run_synthesis_pipeline
@@ -77,6 +78,57 @@ def selected_query_mode(query: str, label: str, config: dict) -> QueryMode:
     return detect_query_mode(query, explicit_mode=MODE_LABELS[label], config=config)
 
 
+def render_document_library_page(folder_path: str, config: dict) -> None:
+    st.header("文献库管理")
+    st.caption("数据来源：本地 PDF/SI 目录、index_manifest、parse_report 和 index_status。")
+
+    rows = list_document_library(folder_path, config)
+    if not rows:
+        st.info("当前没有可显示的文献。请选择本地文献文件夹，或先建立索引/生成解析报告。")
+        return
+
+    col1, col2, col3, col4 = st.columns(4)
+    parse_filter = col1.selectbox("解析状态", ["全部", "unknown", "success", "partial", "failed"])
+    index_filter = col2.selectbox(
+        "索引状态",
+        ["全部", "not_indexed", "parsing", "parsed", "chunked", "embedding", "indexed", "failed"],
+    )
+    si_filter = col3.selectbox("SI", ["全部", "主文献", "Supporting Information"])
+    keyword = col4.text_input("文件名 / DOI", value="")
+
+    filtered = rows
+    if parse_filter != "全部":
+        filtered = [row for row in filtered if row.get("parse_status") == parse_filter]
+    if index_filter != "全部":
+        filtered = [row for row in filtered if row.get("index_status") == index_filter]
+    if si_filter != "全部":
+        want_si = si_filter == "Supporting Information"
+        filtered = [row for row in filtered if bool(row.get("is_si")) == want_si]
+    if keyword.strip():
+        needle = keyword.strip().lower()
+        filtered = [
+            row for row in filtered
+            if needle in str(row.get("filename") or "").lower()
+            or needle in str(row.get("doi") or "").lower()
+        ]
+
+    st.caption(f"显示 {len(filtered)} / {len(rows)} 条文献记录")
+    table_rows = [
+        {
+            "标题": row.get("title") or "",
+            "文件名": row.get("filename") or "",
+            "DOI": row.get("doi") or "",
+            "SI": bool(row.get("is_si")),
+            "parse_status": row.get("parse_status") or "unknown",
+            "index_status": row.get("index_status") or "not_indexed",
+            "chunk 数量": int(row.get("chunk_count") or 0),
+            "错误摘要": row.get("error_summary") or "",
+        }
+        for row in filtered
+    ]
+    st.dataframe(table_rows, use_container_width=True, hide_index=True)
+
+
 st.set_page_config(page_title="CO2RR 文献 RAG Agent", layout="wide")
 inject_css()
 st.title("CO2RR 文献 RAG Agent")
@@ -107,11 +159,23 @@ with st.sidebar:
         placeholder="例如：D:/CO2RR_PDFs/AgNPs",
     )
 
+    page = st.radio(
+        "入口",
+        ["文献查询", "文献库管理"],
+        index=0,
+        help="文献库管理只读取本地状态文件，不会触发解析、索引重建或删除。",
+    )
+
     provider, model = get_provider_and_model(config)
     st.divider()
     st.caption(f"LLM Provider：{provider}")
     st.caption(f"模型：{model or '未配置'}")
     st.caption(f"嵌入：{config.get('embedding_model', '')}")
+
+
+if page == "文献库管理":
+    render_document_library_page(folder_path, config)
+    st.stop()
 
 
 llm = get_llm_client(config)
@@ -178,13 +242,13 @@ if st.button("建立 / 更新索引", type="primary", disabled=not folder_path):
                     st.info("本次索引已停止。修复 API 额度或配置后，可以重新点击建立 / 更新索引。")
                     st.stop()
 
-                fp = get_file_fingerprint(os.path.join(folder_path, fname))
-                files_manifest[fname] = {
-                    "fingerprint": fp,
-                    "chunk_count": len(chunks["children"]),
-                    "status": "indexed",
-                    "error": None,
-                }
+                files_manifest[fname] = build_manifest_entry(
+                    folder_path,
+                    fname,
+                    chunk_count=len(chunks["children"]),
+                    status="indexed",
+                    error=None,
+                )
 
             manifest["files"] = files_manifest
             save_manifest(config.get("index_manifest_path", "./data/index_manifest.json"), manifest)
