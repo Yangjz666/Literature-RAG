@@ -110,22 +110,22 @@
 
 ### Tests for User Story 3
 
-- [ ] T037 [P] [US3] Add tests for single-document reparse preserving old parse_report on failure in `tests/test_parse_report.py`
-- [ ] T038 [P] [US3] Add tests for single-document rebuild updating only target document status in `tests/test_index_status.py`
-- [ ] T039 [P] [US3] Add tests for full rebuild operation summary counts in `tests/test_index_status.py`
+- [X] T037 [P] [US3] Add tests for single-document reparse preserving old parse_report on failure in `tests/test_parse_report.py`
+- [X] T038 [P] [US3] Add tests for single-document rebuild updating only target document status in `tests/test_index_status.py`
+- [X] T039 [P] [US3] Add tests for full rebuild operation summary counts in `tests/test_index_status.py`
 
 ### Implementation for User Story 3
 
-- [ ] T040 [US3] Add single-file parse wrapper that returns pages, metadata, warnings, and failed reports without changing `load_folder()` behavior in `app/ingest.py`
-- [ ] T041 [US3] Write parse_report after successful, partial, or failed PDF parsing in `app/ingest.py`
-- [ ] T042 [US3] Implement `reparse_document` operation with old-report preservation and diff summary in `app/document_library.py`
-- [ ] T043 [US3] Add single-document indexing helper that chunks only the target paper in `app/indexer.py`
-- [ ] T044 [US3] Implement single-document index rebuild using existing `chunk_paper()` and `LiteratureIndex.add_chunks()` in `app/indexer.py`
-- [ ] T045 [US3] Update index_status stages during single-document reparse and rebuild operations in `app/index_status.py`
-- [ ] T046 [US3] Implement full rebuild progress summary without changing existing index storage format in `app/indexer.py`
-- [ ] T047 [US3] Add reparse, rebuild current index, and full rebuild controls with user-visible progress in `ui/streamlit_app.py`
-- [ ] T048 [US3] Ensure single-document reparse and single-document rebuild controls are separate actions in `ui/streamlit_app.py`
-- [ ] T049 [US3] Ensure single-document operations never call full-library rebuild paths in `app/document_library.py`
+- [X] T040 [US3] Add single-file parse wrapper that returns pages, metadata, warnings, and failed reports without changing `load_folder()` behavior in `app/ingest.py`
+- [X] T041 [US3] Write parse_report after successful, partial, or failed PDF parsing in `app/ingest.py`
+- [X] T042 [US3] Implement `reparse_document` operation with old-report preservation and diff summary in `app/document_library.py`
+- [X] T043 [US3] Add single-document indexing helper that chunks only the target paper in `app/indexer.py`
+- [X] T044 [US3] Implement single-document index rebuild using existing `chunk_paper()` and `LiteratureIndex.add_chunks()` in `app/indexer.py`
+- [X] T045 [US3] Update index_status stages during single-document reparse and rebuild operations in `app/index_status.py`
+- [X] T046 [US3] Implement full rebuild progress summary without changing existing index storage format in `app/indexer.py`
+- [X] T047 [US3] Add reparse, rebuild current index, and full rebuild controls with user-visible progress in `ui/streamlit_app.py`
+- [X] T048 [US3] Ensure single-document reparse and single-document rebuild controls are separate actions in `ui/streamlit_app.py`
+- [X] T049 [US3] Ensure single-document operations never call full-library rebuild paths in `app/document_library.py`
 
 **Checkpoint**: US3 operations are independently testable and keep single-document boundaries.
 

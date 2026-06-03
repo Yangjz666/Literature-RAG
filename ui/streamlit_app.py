@@ -11,9 +11,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.chunker import chunk_paper
 from app.extractor import detect_query_type, extract_mechanism_info, extract_synthesis_info, extract_test_conditions
 from app.generator import generate_markdown_output, save_output
-from app.document_library import list_document_library
-from app.indexer import LiteratureIndex, build_manifest_entry, get_changed_files, load_manifest, save_manifest
-from app.ingest import load_folder
+from app.document_library import list_document_library, reparse_document
+from app.indexer import (
+    LiteratureIndex,
+    build_manifest_entry,
+    get_changed_files,
+    load_manifest,
+    rebuild_all_documents_index,
+    rebuild_document_index,
+    save_manifest,
+)
+from app.ingest import load_folder, parse_single_pdf
 from app.llm_client import LLMClient
 from app.pipeline_v2 import run_synthesis_pipeline
 from app.query_router import QueryMode, detect_query_mode
@@ -127,6 +135,108 @@ def render_document_library_page(folder_path: str, config: dict) -> None:
         for row in filtered
     ]
     st.dataframe(table_rows, use_container_width=True, hide_index=True)
+
+    st.divider()
+    st.subheader("文献详情与重建操作")
+    selected_filename = st.selectbox(
+        "选择文献",
+        [row.get("filename") or row.get("document_id") for row in filtered],
+        disabled=not filtered,
+    )
+    selected = next(
+        (row for row in filtered if (row.get("filename") or row.get("document_id")) == selected_filename),
+        None,
+    )
+    if not selected:
+        return
+
+    detail_cols = st.columns(3)
+    detail_cols[0].metric("解析状态", selected.get("parse_status") or "unknown")
+    detail_cols[1].metric("索引状态", selected.get("index_status") or "not_indexed")
+    detail_cols[2].metric("chunk 数量", int(selected.get("chunk_count") or 0))
+    st.json(
+        {
+            "document_id": selected.get("document_id"),
+            "filename": selected.get("filename"),
+            "filepath": selected.get("filepath"),
+            "doi": selected.get("doi"),
+            "failure_or_error": selected.get("error_summary"),
+        },
+        expanded=False,
+    )
+
+    action_col1, action_col2, action_col3 = st.columns(3)
+    if action_col1.button("单篇重新解析", key=f"reparse_{selected.get('document_id')}", type="secondary"):
+        with st.status("正在重新解析当前文献...", expanded=True) as status_box:
+            try:
+                summary = reparse_document(
+                    document=selected,
+                    folder=folder_path,
+                    config=config,
+                )
+            except Exception as exc:
+                status_box.update(label="重新解析失败", state="error")
+                st.error(str(exc))
+            else:
+                state = "complete" if summary.get("status") == "success" else "error"
+                status_box.update(label="重新解析完成" if state == "complete" else "重新解析失败", state=state)
+                st.json(summary, expanded=False)
+
+    if action_col2.button("单篇重建当前索引", key=f"rebuild_{selected.get('document_id')}", type="secondary"):
+        with st.status("正在重建当前文献索引...", expanded=True) as status_box:
+            try:
+                parsed = parse_single_pdf(
+                    selected.get("filepath"),
+                    root_dir=folder_path,
+                    timeout_sec=config.get("performance", {}).get("pdf_parse_timeout_sec", 60),
+                    tesseract_cmd=config.get("ocr", {}).get("tesseract_cmd", ""),
+                    write_report=False,
+                )
+                paper = parsed.get("paper")
+                if not paper:
+                    raise RuntimeError(parsed.get("error") or "当前文献没有可索引文本")
+                paper["document_id"] = selected.get("document_id")
+                index = LiteratureIndex(config)
+                summary = rebuild_document_index(paper, config, index=index)
+            except Exception as exc:
+                status_box.update(label="当前索引重建失败", state="error")
+                st.error(str(exc))
+            else:
+                state = "complete" if summary.get("status") == "success" else "error"
+                status_box.update(label="当前索引重建完成" if state == "complete" else "当前索引重建失败", state=state)
+                st.json(summary, expanded=False)
+
+    if action_col3.button("全量重建索引", key="full_rebuild_index", type="secondary"):
+        if not folder_path or not os.path.isdir(folder_path):
+            st.error("全量重建需要先选择有效的文献文件夹。")
+        else:
+            progress_bar = st.progress(0)
+            progress_text = st.empty()
+
+            def _progress(done: int, total: int, result: dict) -> None:
+                progress_bar.progress(done / max(total, 1))
+                progress_text.text(
+                    f"全量重建进度：{done}/{total}，"
+                    f"{result.get('filename', '')} -> {result.get('status', '')}"
+                )
+
+            with st.status("正在全量重建索引...", expanded=True) as status_box:
+                try:
+                    papers = load_folder(
+                        folder_path,
+                        timeout_sec=config.get("performance", {}).get("pdf_parse_timeout_sec", 60),
+                        tesseract_cmd=config.get("ocr", {}).get("tesseract_cmd", ""),
+                    )
+                    for paper in papers:
+                        paper.setdefault("document_id", selected.get("document_id") if paper.get("filename") == selected.get("filename") else None)
+                    index = LiteratureIndex(config)
+                    summary = rebuild_all_documents_index(papers, config, index=index, progress_cb=_progress)
+                except Exception as exc:
+                    status_box.update(label="全量重建失败", state="error")
+                    st.error(str(exc))
+                else:
+                    status_box.update(label="全量重建完成", state="complete")
+                    st.json(summary, expanded=False)
 
 
 st.set_page_config(page_title="CO2RR 文献 RAG Agent", layout="wide")

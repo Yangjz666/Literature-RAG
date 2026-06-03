@@ -8,6 +8,15 @@ from pathlib import Path
 
 import fitz  # PyMuPDF
 
+from app.parse_report import (
+    PARSE_STATUS_FAILED,
+    PARSE_STATUS_PARTIAL,
+    PARSE_STATUS_SUCCESS,
+    build_parse_report,
+    generate_document_id,
+    save_parse_report,
+)
+
 logger = logging.getLogger(__name__)
 
 SI_KEYWORDS = ("si", "supporting", "supplementary", "esi")
@@ -87,6 +96,105 @@ def _content_hash(pdf_path: str) -> str:
         return ""
 
 
+def _paper_name_from_metadata(pdf_path: Path, metadata: dict) -> str:
+    title = metadata.get("title", "")
+    author = metadata.get("author", "")
+    if title:
+        return title[:80]
+    if author:
+        return author.split(",")[0].split(";")[0].strip()
+    return pdf_path.stem
+
+
+def _parse_status_for_pages(parsed: dict) -> str:
+    if parsed.get("error"):
+        return PARSE_STATUS_FAILED
+    pages = parsed.get("pages") or []
+    if not pages:
+        return PARSE_STATUS_FAILED
+    parsed_pages = [page for page in pages if str(page.get("text") or "").strip()]
+    if len(parsed_pages) == len(pages):
+        return PARSE_STATUS_SUCCESS
+    return PARSE_STATUS_PARTIAL
+
+
+def _build_report_from_parse(
+    pdf_path: Path,
+    document_id: str,
+    parsed: dict,
+    warnings: list[str],
+) -> dict:
+    pages = parsed.get("pages") or []
+    parsed_pages = [page for page in pages if str(page.get("text") or "").strip()]
+    metadata = parsed.get("meta") or {}
+    status = _parse_status_for_pages(parsed)
+    error_message = parsed.get("error")
+    if status == PARSE_STATUS_FAILED and not error_message:
+        error_message = "未解析到可用文本"
+    return build_parse_report(
+        document_id=document_id,
+        filename=pdf_path.name,
+        filepath=str(pdf_path),
+        paper_title=metadata.get("title") or "",
+        doi=metadata.get("doi"),
+        is_si=is_supporting_information(pdf_path.name),
+        metadata_source={"pdf_metadata": True, "doi_regex": bool(metadata.get("doi"))},
+        parse_status=status,
+        pages_total=len(pages),
+        pages_parsed=len(parsed_pages),
+        text_length=sum(len(str(page.get("text") or "")) for page in pages),
+        ocr_used=any(bool(page.get("used_ocr")) for page in pages),
+        error_message=error_message,
+        warnings=warnings,
+    )
+
+
+def parse_single_pdf(
+    pdf_path: str | Path,
+    root_dir: str | Path | None = None,
+    timeout_sec: int = 60,
+    tesseract_cmd: str = "",
+    report_dir: str | Path | None = None,
+    write_report: bool = False,
+) -> dict:
+    """Parse exactly one PDF and optionally persist its parse_report."""
+    path = Path(pdf_path)
+    document_id = generate_document_id(path, root_dir)
+    warnings: list[str] = []
+    parsed = extract_text(str(path), timeout_sec=timeout_sec, tesseract_cmd=tesseract_cmd)
+    if parsed.get("error"):
+        warnings.append(str(parsed["error"]))
+
+    report = _build_report_from_parse(path, document_id, parsed, warnings)
+    metadata = parsed.get("meta") or {}
+    result = {
+        "document_id": document_id,
+        "filename": path.name,
+        "filepath": str(path),
+        "pages": parsed.get("pages") or [],
+        "metadata": metadata,
+        "warnings": warnings,
+        "error": parsed.get("error"),
+        "report": report,
+        "paper": None,
+    }
+    if report["parse_status"] != PARSE_STATUS_FAILED:
+        result["paper"] = {
+            "document_id": document_id,
+            "filename": path.name,
+            "filepath": str(path),
+            "paper_name": _paper_name_from_metadata(path, metadata),
+            "doi": metadata.get("doi"),
+            "content_hash": _content_hash(str(path)),
+            "is_si": is_supporting_information(path.name),
+            "pages": result["pages"],
+            "meta": metadata,
+        }
+    if write_report:
+        save_parse_report(report, report_dir or "./data/parse_reports")
+    return result
+
+
 def deduplicate_papers(papers: list[dict]) -> list[dict]:
     """按 DOI 或内容哈希去重，保留文件名字典序靠前的版本。"""
     seen_doi: dict[str, dict] = {}
@@ -131,20 +239,10 @@ def load_folder(folder: str, timeout_sec: int = 60, tesseract_cmd: str = "") -> 
         doi = parsed["meta"].get("doi")
         ch = _content_hash(str(pdf_path))
 
-        # 推断 paper_name：优先标题，其次 author_year，最后文件名
-        title = parsed["meta"].get("title", "")
-        author = parsed["meta"].get("author", "")
-        if title:
-            paper_name = title[:80]
-        elif author:
-            paper_name = author.split(",")[0].split(";")[0].strip()
-        else:
-            paper_name = pdf_path.stem
-
         raw.append({
             "filename": filename,
             "filepath": str(pdf_path),
-            "paper_name": paper_name,
+            "paper_name": _paper_name_from_metadata(pdf_path, parsed["meta"]),
             "doi": doi,
             "content_hash": ch,
             "is_si": is_si,

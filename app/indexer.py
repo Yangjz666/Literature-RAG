@@ -5,6 +5,7 @@ import pickle
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
+from uuid import uuid4
 
 try:
     from rank_bm25 import BM25Okapi
@@ -14,6 +15,18 @@ from openai import OpenAI, OpenAIError, RateLimitError
 
 from app.llm_client import load_env_file
 from app.parse_report import generate_document_id
+from app.chunker import chunk_paper
+from app.index_status import (
+    STATUS_CHUNKED,
+    STATUS_EMBEDDING,
+    STATUS_FAILED,
+    STATUS_INDEXED,
+    build_operation_summary,
+    build_rebuild_summary,
+    record_failure,
+    record_rebuild_stage,
+    save_operation_summary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +239,19 @@ class LiteratureIndex:
         with open(self._parent_store_path, "wb") as f:
             pickle.dump(self._parent_store, f)
 
+    def _rebuild_bm25_from_collection(self) -> None:
+        existing = self._collection.get(include=["documents"])
+        if existing["documents"]:
+            tokenized = [t.lower().split() for t in existing["documents"]]
+            if BM25Okapi is None:
+                raise RuntimeError("rank-bm25 is required to build BM25 index.")
+            self._bm25 = BM25Okapi(tokenized)
+            self._bm25_ids = existing["ids"]
+        else:
+            self._bm25 = None
+            self._bm25_ids = []
+        self._save_bm25()
+
     # ── 索引操作 ─────────────────────────────────────────────────────────────
 
     def add_chunks(self, children: list[dict], parents: list[dict]) -> None:
@@ -267,23 +293,43 @@ class LiteratureIndex:
             logger.info(f"从索引删除 {len(results['ids'])} 个 chunk（{filename}）")
 
         # 重建 BM25
-        existing = self._collection.get(include=["documents"])
-        if existing["documents"]:
-            tokenized = [t.lower().split() for t in existing["documents"]]
-            if BM25Okapi is None:
-                raise RuntimeError("rank-bm25 is required to build BM25 index.")
-            self._bm25 = BM25Okapi(tokenized)
-            self._bm25_ids = existing["ids"]
-        else:
-            self._bm25 = None
-            self._bm25_ids = []
-        self._save_bm25()
+        self._rebuild_bm25_from_collection()
 
         # 清理父 chunk store
         to_del = [k for k, v in self._parent_store.items() if v.get("filename") == filename]
         for k in to_del:
             del self._parent_store[k]
         self._save_parent_store()
+
+    def prune_document_records(
+        self,
+        document_id: str,
+        filename: str,
+        keep_child_ids: set[str],
+        keep_parent_ids: set[str],
+    ) -> int:
+        """Remove old records for one document while keeping freshly rebuilt chunk ids."""
+        where = {"document_id": document_id} if document_id else {"filename": filename}
+        results = self._collection.get(where=where)
+        stale_ids = [chunk_id for chunk_id in results["ids"] if chunk_id not in keep_child_ids]
+        if stale_ids:
+            self._collection.delete(ids=stale_ids)
+            self._rebuild_bm25_from_collection()
+
+        to_del = [
+            chunk_id
+            for chunk_id, parent in self._parent_store.items()
+            if chunk_id not in keep_parent_ids
+            and (
+                (document_id and parent.get("document_id") == document_id)
+                or (filename and parent.get("filename") == filename)
+            )
+        ]
+        for chunk_id in to_del:
+            del self._parent_store[chunk_id]
+        if to_del:
+            self._save_parent_store()
+        return len(stale_ids) + len(to_del)
 
     def vector_search(self, query: str, top_k: int = 20) -> list[dict]:
         if self._collection.count() == 0:
@@ -322,3 +368,174 @@ class LiteratureIndex:
         if result["ids"]:
             return {"chunk_id": chunk_id, "text": result["documents"][0], "metadata": result["metadatas"][0]}
         return None
+
+
+def build_single_document_chunks(
+    paper: dict,
+    config: dict | None = None,
+) -> dict:
+    """Chunk exactly one paper without scanning or rebuilding the full library."""
+    config = config or {}
+    return chunk_paper(
+        paper,
+        child_max=config.get("chunking", {}).get("child_chunk_max_size", 300),
+        parent_max=config.get("chunking", {}).get("parent_chunk_size", 800),
+    )
+
+
+def rebuild_document_index(
+    paper: dict,
+    config: dict,
+    index: LiteratureIndex | None = None,
+    status_path: str | Path | None = None,
+) -> dict:
+    document_id = str(paper.get("document_id") or "")
+    filename = str(paper.get("filename") or "")
+    if not document_id:
+        filepath = paper.get("filepath") or filename
+        document_id = generate_document_id(filepath)
+        paper["document_id"] = document_id
+    if not filename:
+        raise ValueError("单篇索引重建需要 filename")
+
+    status_path = status_path or config.get("index_status_path", "./data/index_status.json")
+    operation_id = f"rebuild_{uuid4().hex[:12]}"
+    index = index or LiteratureIndex(config)
+
+    try:
+        chunks = build_single_document_chunks(paper, config)
+        child_count = len(chunks["children"])
+        record_rebuild_stage(
+            document_id,
+            STATUS_CHUNKED,
+            path=status_path,
+            filename=filename,
+            operation_id=operation_id,
+            chunk_count=child_count,
+        )
+
+        record_rebuild_stage(
+            document_id,
+            STATUS_EMBEDDING,
+            path=status_path,
+            filename=filename,
+            operation_id=operation_id,
+            chunk_count=child_count,
+        )
+        index.add_chunks(chunks["children"], chunks["parents"])
+        index.prune_document_records(
+            document_id,
+            filename,
+            keep_child_ids={chunk["chunk_id"] for chunk in chunks["children"]},
+            keep_parent_ids={chunk["chunk_id"] for chunk in chunks["parents"]},
+        )
+
+        record_rebuild_stage(
+            document_id,
+            STATUS_INDEXED,
+            path=status_path,
+            filename=filename,
+            operation_id=operation_id,
+            chunk_count=child_count,
+        )
+        manifest_path = config.get("index_manifest_path", "./data/index_manifest.json")
+        manifest = load_manifest(manifest_path)
+        folder = str(Path(str(paper.get("filepath") or filename)).parent)
+        try:
+            manifest["files"][filename] = build_manifest_entry(
+                folder,
+                filename,
+                chunk_count=child_count,
+                status="indexed",
+                error=None,
+            )
+            manifest["files"][filename]["document_id"] = document_id
+            save_manifest(manifest_path, manifest)
+        except OSError as exc:
+            logger.warning("manifest 更新失败: %s", exc)
+
+        summary = build_operation_summary(
+            operation_id,
+            "rebuild_index",
+            status="success",
+            document_id=document_id,
+            filename=filename,
+            current_stage=STATUS_INDEXED,
+            current_document_chunk_count=child_count,
+            results={document_id: {"status": "success", "chunk_count": child_count}},
+        )
+        return save_operation_summary(summary, status_path)
+    except Exception as exc:
+        reason = str(exc)
+        record_failure(
+            document_id,
+            "embedding" if "Embedding" in reason or "embedding" in reason else "indexing",
+            reason,
+            path=status_path,
+            operation_id=operation_id,
+            operation_type="rebuild_index",
+        )
+        summary = build_operation_summary(
+            operation_id,
+            "rebuild_index",
+            status="failed",
+            document_id=document_id,
+            filename=filename,
+            current_stage=STATUS_FAILED,
+            failure_stage="embedding" if "Embedding" in reason or "embedding" in reason else "indexing",
+            failure_reason=reason,
+            results={document_id: {"status": "failed", "failure_reason": reason}},
+            error_messages=[reason],
+        )
+        return save_operation_summary(summary, status_path)
+
+
+def rebuild_all_documents_index(
+    papers: list[dict],
+    config: dict,
+    index: LiteratureIndex | None = None,
+    progress_cb: Callable[[int, int, dict], None] | None = None,
+) -> dict:
+    operation_id = f"full_rebuild_{uuid4().hex[:12]}"
+    status_path = config.get("index_status_path", "./data/index_status.json")
+    index = index or LiteratureIndex(config)
+    results: dict[str, dict] = {}
+
+    for position, paper in enumerate(papers, start=1):
+        document_id = str(paper.get("document_id") or generate_document_id(paper.get("filepath") or paper.get("filename", "")))
+        paper["document_id"] = document_id
+        filename = str(paper.get("filename") or document_id)
+        if not paper.get("pages"):
+            results[document_id] = {
+                "status": "skipped",
+                "filename": filename,
+                "reason": "缺少解析后的 pages",
+            }
+            if progress_cb:
+                progress_cb(position, len(papers), results[document_id])
+            continue
+        try:
+            summary = rebuild_document_index(paper, config, index=index, status_path=status_path)
+            results[document_id] = {
+                "status": summary.get("status"),
+                "filename": filename,
+                "chunk_count": summary.get("current_document_chunk_count", 0),
+            }
+        except Exception as exc:
+            results[document_id] = {
+                "status": "failed",
+                "filename": filename,
+                "failure_stage": "indexing",
+                "failure_reason": str(exc),
+            }
+        if progress_cb:
+            progress_cb(position, len(papers), results[document_id])
+
+    overall_status = "failed" if results and all(r.get("status") == "failed" for r in results.values()) else "success"
+    summary = build_rebuild_summary(
+        operation_id,
+        "full_rebuild",
+        results=results,
+        status=overall_status,
+    )
+    return save_operation_summary(summary, status_path)

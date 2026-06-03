@@ -15,6 +15,7 @@ from app.parse_report import (
     load_parse_report,
     save_parse_report,
 )
+from app.document_library import reparse_document
 
 
 def test_generate_document_id_is_stable_for_relative_path(tmp_path):
@@ -75,3 +76,52 @@ def test_diff_parse_reports_reports_changed_fields():
 
     assert diff["parse_status"] == {"old": "failed", "new": "success"}
     assert diff["chunks_created"] == {"old": 0, "new": 3}
+
+
+def test_single_document_reparse_failure_preserves_old_parse_report(tmp_path):
+    report_dir = tmp_path / "reports"
+    status_path = tmp_path / "index_status.json"
+    pdf = tmp_path / "paper.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    old_report = build_parse_report(
+        document_id="doc_test",
+        filename="paper.pdf",
+        filepath=str(pdf),
+        paper_title="Old usable report",
+        parse_status=PARSE_STATUS_SUCCESS,
+        pages_total=2,
+        pages_parsed=2,
+        chunks_created=6,
+    )
+    save_parse_report(old_report, report_dir)
+
+    def failing_parse(*args, **kwargs):
+        return {
+            "document_id": "doc_test",
+            "filename": "paper.pdf",
+            "filepath": str(pdf),
+            "pages": [],
+            "metadata": {},
+            "warnings": [],
+            "error": "无法打开文件",
+            "report": build_parse_report(
+                document_id="doc_test",
+                filename="paper.pdf",
+                filepath=str(pdf),
+                parse_status=PARSE_STATUS_FAILED,
+                error_message="无法打开文件",
+            ),
+        }
+
+    summary = reparse_document(
+        document={"document_id": "doc_test", "filename": "paper.pdf", "filepath": str(pdf)},
+        config={"parse_report_dir": str(report_dir), "index_status_path": str(status_path)},
+        parse_func=failing_parse,
+    )
+
+    assert load_parse_report("doc_test", report_dir) == old_report
+    assert summary["status"] == "failed"
+    assert summary["failure_stage"] == "parsing"
+    assert summary["failure_reason"] == "无法打开文件"
+    assert summary["old_state"]["parse_status"] == PARSE_STATUS_SUCCESS
+    assert summary["new_state"]["parse_status"] == PARSE_STATUS_FAILED

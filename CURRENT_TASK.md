@@ -2,111 +2,96 @@
 
 ## 1. 当前任务
 
-实现 `specs/001-library-index-transparency/tasks.md` 的 MVP 范围：Phase 1、Phase 2 和 User Story 1。
+继续实现 Feature 001「文献库管理与索引透明化」的 Phase 5 / US3：重建解析与索引。
 
 本次实现范围：
 
-- `app/parse_report.py`：parse_report 基础数据结构、保存、读取、列表和 diff。
-- `app/index_status.py`：index_status 基础数据结构、保存、读取和操作摘要。
-- `app/document_library.py`：从本地 PDF/SI 目录、`index_manifest`、parse_report、index_status 聚合文献列表。
-- `ui/streamlit_app.py`：新增“文献库管理”入口和列表页。
-- `tests/test_parse_report.py`、`tests/test_index_status.py`、`tests/test_document_library.py`：MVP 基础测试。
+- T037-T039：补充单篇重新解析失败保留旧 parse_report、单篇索引状态边界、全量重建 summary 统计测试。
+- T040-T042：新增单文件解析 wrapper、parse_report 写入能力、`reparse_document()` 单篇重新解析编排。
+- T043-T046：新增单篇 chunk/index helper、单篇索引重建、index_status 阶段流转、全量重建逐篇 summary。
+- T047-T049：在 Streamlit 文献库管理页增加单篇重新解析、单篇重建当前索引、全量重建索引三个独立入口。
 
-本次暂不实现文献详情页、单篇重新解析、单篇重建索引、删除文献、完整 Debug Trace、citation verification、FastAPI、Docker 或数据库。
+本次明确不做：
 
-## 2. 当前审计结论
+- US4 删除文献及关联记录 T050-T060。
+- Polish T061-T068。
+- 新的 Debug Trace、citation verification、FastAPI、Docker、数据库或联网下载功能。
+- git commit、merge、push。
 
-项目不是纯需求阶段，也不是完整 V3 成品阶段。更准确的判断是：
+## 2. 当前阶段
 
-- **V1 基础 RAG + 结构化抽取闭环已经实现。**
-- **V2 文献综合 pipeline 已部分实现并接入 UI，但部分能力默认关闭或保守降级。**
-- **V3 主要是 PRD 中的工程化规划，尚未完整实现。**
+- 当前 Feature：`001-library-index-transparency`
+- 当前进行到：Phase 5 / US3
+- 已完成：MVP、US2、T001-T049
+- 剩余任务：US4 T050-T060、Polish T061-T068
 
-## 3. 已经实现
+## 3. 本次完成内容
 
-- PDF / SI 解析、OCR 降级、DOI 提取、去重。
-- 父子 chunk 切分。
-- ChromaDB 向量索引、BM25 索引、parent chunk store。
-- 增量索引 manifest。
-- V1 混合检索：BM25 + vector + RRF。
-- V1 三类结构化抽取：合成、测试条件、机理。
-- Evidence sentence 原文回查。
-- V1 Markdown 输出和保存。
-- Streamlit UI 的索引与查询流程。
-- V2 schema、候选召回、上下文构建、rerank 降级、citation-aware synthesis、claim verifier、feedback、follow-up retrieval、Markdown V2、pipeline、query router、eval bench、metadata enricher。
-- UI 中已接入查询模式选择，文献综合模式会调用 `run_synthesis_pipeline()`。
+- `app/ingest.py` 新增 `parse_single_pdf()`，只解析单个 PDF，返回 pages、metadata、warnings、report、paper，且 `load_folder()` 默认行为保持不变。
+- `app/document_library.py` 新增 `reparse_document()`，失败时保留旧 parse_report，并记录 failure_stage/failure_reason 和 diff summary。
+- `app/index_status.py` 新增 operation summary 保存、reparse/rebuild 阶段记录、full rebuild 统计 summary helper。
+- `app/indexer.py` 新增单篇 chunk helper、单篇索引重建、单文献旧 chunk 清理、全量逐篇重建 summary。
+- `ui/streamlit_app.py` 在文献库管理页增加三个分开的操作入口，并展示操作结果 JSON summary。
+- `specs/001-library-index-transparency/tasks.md` 勾选 T037-T049。
 
-## 4. 部分完成
+## 4. 修改文件
 
-- V2 文献综合：代码路径存在，但未在当前环境完成真实端到端验证。
-- Reranker：默认关闭；启用需要额外依赖 `sentence-transformers` 和模型下载。
-- Self-feedback：默认关闭，目前主要记录反馈和 follow-up 意图。
-- Follow-up retrieval：默认关闭，且还不是完整“二次检索后重新修订答案”的成熟闭环。
-- Claim-level verification：规则保守，但还不是强语义校验。
-- 精读解释模式：已有路由和 UI 入口，但功能未完整实现。
+- `app/ingest.py`
+- `app/document_library.py`
+- `app/index_status.py`
+- `app/indexer.py`
+- `ui/streamlit_app.py`
+- `tests/test_parse_report.py`
+- `tests/test_index_status.py`
+- `specs/001-library-index-transparency/tasks.md`
+- `specs/001-library-index-transparency/PROGRESS.md`
+- `CURRENT_TASK.md`
 
-## 5. 需求中有但尚未完整实现
-
-- V3 文献库管理页。
-- 检索 Debug Trace 面板。
-- 查询历史页。
-- Token、耗时、成本统计。
-- 一键评测数据集和报告。
-- 完整部署说明。
-- 主项目 `README.md`。
-- `.env.example`。
-- Docker / compose 部署文件。
-- 完整 self-feedback 修订闭环。
-- 默认可运行的 cross-encoder reranker 环境。
-
-## 6. 当前待确认事项
-
-- 当前是否在 `main` 分支；constitution 要求功能开发应在任务分支上进行。
-- 本机 `.env` 是否配置完整的 LLM 和 Embedding 通道。
-- 当前 `data/chroma_db`、`data/index_manifest.json`、BM25 和 parent store 是否存在且与配置一致。
-- 真实文献库下 V1 / V2 查询是否端到端成功。
-- `.agents/skills/rag-project-context/` 是未跟踪目录，应确认是否需要加入版本控制或保持本地私有。
-
-## 7. 本次验证状态
-
-本次 MVP 实现验证：
+## 5. 测试记录
 
 ```bash
-.venv/bin/pytest tests/test_parse_report.py tests/test_index_status.py tests/test_document_library.py -q
-PYTHONPATH=. .venv/bin/pytest tests/test_acceptance.py -k "changed_files or manifest_saved" -q
-PYTHONPATH=. .venv/bin/pytest tests/test_acceptance.py::TestChunker -q
-python3 -m py_compile app/parse_report.py app/index_status.py app/document_library.py app/chunker.py app/indexer.py ui/streamlit_app.py
+.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py -q
 ```
 
-结果：
+结果：18 passed。
 
-- 新增 MVP 测试：15 passed。
-- 现有 manifest 兼容测试：1 passed，38 deselected。
-- 现有 chunker 兼容测试：4 passed。
-- 语法编译检查通过。
+```bash
+.venv/bin/python -m py_compile app/ingest.py app/indexer.py app/document_library.py app/index_status.py ui/streamlit_app.py
+```
 
-## 8. 下一步最适合开发的小功能
+结果：通过，无输出。
 
-最适合的下一个小功能是：**补齐项目启动与配置文档：新增根目录 `README.md` 和 `.env.example`，并记录 V1 / V2 的最小可运行流程。**
+```bash
+timeout 20 .venv/bin/python -m streamlit run ui/streamlit_app.py --server.headless true --server.port 8501
+```
 
-理由：
+结果：Streamlit 成功启动并显示 Local URL `http://localhost:8501`，随后被 timeout 正常停止；未进行浏览器内手动点击验证。
 
-- 当前代码已经有不少 V1/V2 能力，但根目录没有 README，新开发者不知道如何配置 LLM、Embedding、索引路径和启动 UI。
-- 这个任务不碰核心业务逻辑，风险低。
-- 可以同步 constitution 的文档同步要求。
-- 完成后再做端到端验证、Debug Trace 面板或 V2 修订闭环会更稳。
+## 6. 验收状态
 
-建议验收标准：
+- 单篇重新解析失败时，旧 parse_report 保留：已通过测试覆盖。
+- 单篇重建索引状态只影响当前文献：已通过测试覆盖。
+- 全量重建返回 success / failed / skipped 摘要：已通过测试覆盖。
+- UI 三个操作入口分开：已实现并通过 Streamlit 启动 smoke test。
+- 失败时展示 failure_stage 和 failure_reason：已在 operation summary 和 index_status 中记录，UI 以 JSON summary 展示。
+- 不删除原始 PDF：本次未实现删除逻辑。
+- 不破坏 US1/US2 和 V1/V2 查询入口：未改写查询入口；已做编译和启动 smoke test，仍建议手动点击回归。
 
-- `README.md` 包含项目简介、技术栈、环境变量、安装、启动、索引、查询、V1/V2 模式说明、常见错误。
-- `.env.example` 不含真实密钥，只列出必需变量。
-- 文档明确说明 `EMBEDDING_API_KEY` / `EMBEDDING_BASE_URL` 与 LLM API 是两套配置。
-- 在安装 pytest 后运行 `python3 -m pytest -q` 并记录结果。
+## 7. 已知风险
 
-## 9. 后续开发优先级建议
+- 单篇重建当前索引需要重新读取目标 PDF 以获得页面文本，但不会写 parse_report，也不会触发全库重建。
+- Streamlit smoke test 只验证启动成功，未执行真实按钮点击；真实 embedding 配置、PDF 内容和 ChromaDB 状态仍需本地手动验证。
+- 全量重建会按 `load_folder()` 读取当前文件夹内 PDF，用户必须明确点击“全量重建索引”按钮才会触发。
 
-1. 文档与配置补齐：`README.md`、`.env.example`、测试运行说明。
-2. 测试环境修复：安装依赖并跑通 `python3 -m pytest -q`。
-3. V2 文献综合端到端冒烟测试：使用小型 PDF fixture 或本地样本文献验证索引、检索、生成、保存。
-4. Debug Trace 最小面板：先展示 BM25 / vector / RRF / final chunks，而不是一次性做完整 V3 管理后台。
-5. 完善 self-feedback 修订闭环：只有在 V2 端到端稳定后再做。
+## 8. 下一步建议
+
+1. 手动打开文献库管理页，选择一篇测试 PDF，分别点击“单篇重新解析”和“单篇重建当前索引”，确认 summary 中的 failure_stage/failure_reason 或 success 结果符合预期。
+2. 使用小型测试文献夹点击“全量重建索引”，确认 success / failed / skipped 数量展示正确。
+3. 继续实现 US4 T050-T060，删除关联记录仍必须保持“不删除原始 PDF”默认行为。
+4. 最后再做 Polish T061-T068，包括用户文档、README 同步和完整回归记录。
+
+## 9. Git 状态
+
+- 本次未执行 git commit。
+- 本次未执行 merge。
+- 本次未执行 push。

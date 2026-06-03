@@ -107,6 +107,20 @@ def save_index_status(data: dict[str, Any], path: str | Path = DEFAULT_INDEX_STA
     return status_path
 
 
+def save_operation_summary(
+    summary: dict[str, Any],
+    path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+) -> dict[str, Any]:
+    data = load_index_status(path)
+    operation_id = str(summary.get("operation_id") or "")
+    if not operation_id:
+        raise ValueError("operation summary 缺少 operation_id")
+    summary["updated_at"] = now_iso()
+    data.setdefault("operations", {})[operation_id] = summary
+    save_index_status(data, path)
+    return summary
+
+
 def update_document_status(
     document_id: str,
     updates: dict[str, Any],
@@ -131,16 +145,78 @@ def record_failure(
     stage: str,
     reason: str,
     path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+    operation_id: str | None = None,
+    operation_type: str | None = None,
 ) -> dict[str, Any]:
-    return update_document_status(
-        document_id,
-        {
-            "status": STATUS_FAILED,
-            "failure_stage": stage,
-            "failure_reason": reason,
-        },
-        path=path,
-    )
+    updates: dict[str, Any] = {
+        "status": STATUS_FAILED,
+        "failure_stage": stage,
+        "failure_reason": reason,
+    }
+    if operation_id:
+        updates["last_operation_id"] = operation_id
+    if operation_type:
+        updates["last_operation_type"] = operation_type
+    return update_document_status(document_id, updates, path=path)
+
+
+def record_reparse_stage(
+    document_id: str,
+    stage_status: str,
+    path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+    filename: str = "",
+    operation_id: str | None = None,
+) -> dict[str, Any]:
+    updates: dict[str, Any] = {
+        "filename": filename,
+        "status": stage_status,
+        "last_operation_type": "reparse",
+        "failure_stage": None,
+        "failure_reason": None,
+    }
+    if operation_id:
+        updates["last_operation_id"] = operation_id
+    if stage_status == STATUS_PARSING:
+        updates["parse_completed"] = False
+    elif stage_status == STATUS_PARSED:
+        updates["parse_completed"] = True
+    return update_document_status(document_id, updates, path=path)
+
+
+def record_rebuild_stage(
+    document_id: str,
+    stage_status: str,
+    path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+    filename: str = "",
+    operation_id: str | None = None,
+    chunk_count: int | None = None,
+) -> dict[str, Any]:
+    updates: dict[str, Any] = {
+        "filename": filename,
+        "status": stage_status,
+        "last_operation_type": "rebuild_index",
+        "failure_stage": None,
+        "failure_reason": None,
+    }
+    if operation_id:
+        updates["last_operation_id"] = operation_id
+    if chunk_count is not None:
+        updates["chunk_count"] = chunk_count
+    if stage_status == STATUS_CHUNKED:
+        updates["chunks_generated"] = True
+    elif stage_status == STATUS_EMBEDDING:
+        updates["chunks_generated"] = True
+    elif stage_status == STATUS_INDEXED:
+        updates.update(
+            {
+                "chunks_generated": True,
+                "embedding_completed": True,
+                "vector_index_written": True,
+                "keyword_index_written": True,
+                "parent_store_written": True,
+            }
+        )
+    return update_document_status(document_id, updates, path=path)
 
 
 def build_operation_summary(
@@ -172,3 +248,28 @@ def build_operation_summary(
     }
     summary.update(fields)
     return summary
+
+
+def build_rebuild_summary(
+    operation_id: str,
+    operation_type: str,
+    results: dict[str, dict[str, Any]],
+    status: str = "success",
+    **fields: Any,
+) -> dict[str, Any]:
+    success_count = sum(1 for result in results.values() if result.get("status") == "success")
+    failed_count = sum(1 for result in results.values() if result.get("status") == "failed")
+    skipped_count = sum(1 for result in results.values() if result.get("status") == "skipped")
+    return build_operation_summary(
+        operation_id,
+        operation_type,
+        status=status,
+        results=results,
+        total_document_count=len(results),
+        success_count=success_count,
+        failed_count=failed_count,
+        skipped_count=skipped_count,
+        completed_document_count=success_count,
+        failed_document_count=failed_count,
+        **fields,
+    )
