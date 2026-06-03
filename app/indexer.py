@@ -4,7 +4,7 @@ import os
 import pickle
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Any
 
 try:
     from rank_bm25 import BM25Okapi
@@ -14,6 +14,7 @@ from openai import OpenAI, OpenAIError, RateLimitError
 
 from app.llm_client import load_env_file
 from app.parse_report import generate_document_id
+from app.chunker import chunk_paper
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,28 @@ def save_manifest(path: str, manifest: dict) -> None:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+
+def remove_manifest_entry(
+    manifest_path: str,
+    document_id: str,
+    filename: str | None = None,
+) -> dict[str, Any]:
+    manifest = load_manifest(manifest_path)
+    files = manifest.setdefault("files", {})
+    matched = []
+    for key, raw in files.items():
+        if key == filename:
+            matched.append(key)
+            continue
+        if isinstance(raw, dict) and raw.get("document_id") == document_id:
+            matched.append(key)
+    if not matched:
+        return {"target": "manifest", "status": "skipped", "reason": "manifest 中无该文献"}
+    for key in matched:
+        files.pop(key, None)
+    save_manifest(manifest_path, manifest)
+    return {"target": "manifest", "status": "success", "reason": f"已移除 {len(matched)} 条 manifest 记录"}
 
 
 def build_manifest_entry(folder: str, filename: str, chunk_count: int, status: str = "indexed", error: str | None = None) -> dict:
@@ -226,6 +249,74 @@ class LiteratureIndex:
         with open(self._parent_store_path, "wb") as f:
             pickle.dump(self._parent_store, f)
 
+    def _rebuild_bm25_from_collection(self) -> int:
+        existing = self._collection.get(include=["documents"])
+        documents = existing.get("documents") or []
+        if documents:
+            tokenized = [t.lower().split() for t in documents]
+            if BM25Okapi is None:
+                raise RuntimeError("rank-bm25 is required to build BM25 index.")
+            self._bm25 = BM25Okapi(tokenized)
+            self._bm25_ids = existing["ids"]
+        else:
+            self._bm25 = None
+            self._bm25_ids = []
+        self._save_bm25()
+        return len(documents)
+
+    def _delete_vector_records(self, document_id: str, filename: str | None = None) -> int:
+        ids: list[str] = []
+        if document_id:
+            results = self._collection.get(where={"document_id": document_id})
+            ids.extend(results.get("ids") or [])
+        if filename and not ids:
+            results = self._collection.get(where={"filename": filename})
+            ids.extend(results.get("ids") or [])
+        if ids:
+            self._collection.delete(ids=ids)
+        return len(ids)
+
+    def _cleanup_parent_store(self, document_id: str, filename: str | None = None) -> int:
+        to_delete = []
+        for key, value in self._parent_store.items():
+            if document_id and value.get("document_id") == document_id:
+                to_delete.append(key)
+            elif filename and value.get("filename") == filename:
+                to_delete.append(key)
+        for key in to_delete:
+            del self._parent_store[key]
+        self._save_parent_store()
+        return len(to_delete)
+
+    def get_chunk_previews(
+        self,
+        document_id: str,
+        filename: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        results = self._collection.get(where={"document_id": document_id}, include=["documents", "metadatas"])
+        if not results.get("ids") and filename:
+            results = self._collection.get(where={"filename": filename}, include=["documents", "metadatas"])
+        previews = []
+        for chunk_id, text, metadata in zip(
+            results.get("ids") or [],
+            results.get("documents") or [],
+            results.get("metadatas") or [],
+        ):
+            parent_id = (metadata or {}).get("parent_chunk_id")
+            parent = self._parent_store.get(parent_id) if parent_id else None
+            previews.append({
+                "chunk_id": chunk_id,
+                "page": (metadata or {}).get("page") or (parent or {}).get("page"),
+                "section": (metadata or {}).get("section") or (parent or {}).get("section") or "",
+                "is_si": bool((metadata or {}).get("is_si", (parent or {}).get("is_si", False))),
+                "text_preview": (text or "")[:300],
+                "parent_chunk_id": parent_id,
+            })
+            if len(previews) >= limit:
+                break
+        return previews
+
     # ── 索引操作 ─────────────────────────────────────────────────────────────
 
     def add_chunks(self, children: list[dict], parents: list[dict]) -> None:
@@ -285,6 +376,103 @@ class LiteratureIndex:
             del self._parent_store[k]
         self._save_parent_store()
 
+    def remove_document_records(self, document_id: str, filename: str | None = None) -> dict[str, dict[str, Any]]:
+        results: dict[str, dict[str, Any]] = {}
+        try:
+            deleted_vectors = self._delete_vector_records(document_id, filename)
+            results["vector_index"] = {
+                "target": "vector_index",
+                "status": "success" if deleted_vectors else "skipped",
+                "reason": f"删除 {deleted_vectors} 条 ChromaDB chunk",
+            }
+        except Exception as e:
+            results["vector_index"] = {"target": "vector_index", "status": "failed", "reason": str(e)}
+
+        try:
+            remaining = self._rebuild_bm25_from_collection()
+            results["keyword_index"] = {
+                "target": "keyword_index",
+                "status": "success",
+                "reason": f"BM25 已按剩余 {remaining} 条 chunk 重建",
+            }
+        except Exception as e:
+            results["keyword_index"] = {"target": "keyword_index", "status": "failed", "reason": str(e)}
+
+        try:
+            deleted_parents = self._cleanup_parent_store(document_id, filename)
+            results["parent_store"] = {
+                "target": "parent_store",
+                "status": "success" if deleted_parents else "skipped",
+                "reason": f"删除 {deleted_parents} 条 parent chunk",
+            }
+        except Exception as e:
+            results["parent_store"] = {"target": "parent_store", "status": "failed", "reason": str(e)}
+
+        return results
+
+    def rebuild_document_index(
+        self,
+        paper: dict,
+        folder: str,
+        config: dict,
+        progress_cb: Callable[[str, float], None] | None = None,
+    ) -> dict[str, Any]:
+        document_id = paper.get("document_id") or generate_document_id(paper.get("filepath") or paper["filename"], folder)
+        filename = paper["filename"]
+        if progress_cb:
+            progress_cb("读取当前文献旧索引记录", 0.2)
+        old_results = self._collection.get(where={"document_id": document_id})
+        if not old_results.get("ids") and filename:
+            old_results = self._collection.get(where={"filename": filename})
+        old_vector_ids = set(old_results.get("ids") or [])
+        old_parent_ids = {
+            key
+            for key, value in self._parent_store.items()
+            if value.get("document_id") == document_id or value.get("filename") == filename
+        }
+
+        if progress_cb:
+            progress_cb("生成当前文献 chunk", 0.4)
+        chunks = chunk_paper(
+            {**paper, "document_id": document_id},
+            child_max=config.get("chunking", {}).get("child_chunk_max_size", 300),
+            parent_max=config.get("chunking", {}).get("parent_chunk_size", 800),
+        )
+
+        if progress_cb:
+            progress_cb("写入向量索引、BM25 和 parent store", 0.75)
+        self.add_chunks(chunks["children"], chunks["parents"])
+
+        new_vector_ids = {chunk["chunk_id"] for chunk in chunks["children"]}
+        stale_vector_ids = sorted(old_vector_ids - new_vector_ids)
+        if stale_vector_ids:
+            self._collection.delete(ids=stale_vector_ids)
+            self._rebuild_bm25_from_collection()
+
+        new_parent_ids = {chunk["chunk_id"] for chunk in chunks["parents"]}
+        for parent_id in old_parent_ids - new_parent_ids:
+            self._parent_store.pop(parent_id, None)
+        self._save_parent_store()
+
+        manifest = load_manifest(self.manifest_path)
+        manifest.setdefault("files", {})[filename] = build_manifest_entry(
+            folder,
+            filename,
+            chunk_count=len(chunks["children"]),
+            status="indexed",
+            error=None,
+        )
+        manifest["files"][filename]["document_id"] = document_id
+        save_manifest(self.manifest_path, manifest)
+        if progress_cb:
+            progress_cb("完成", 1.0)
+        return {
+            "document_id": document_id,
+            "filename": filename,
+            "chunk_count": len(chunks["children"]),
+            "parent_count": len(chunks["parents"]),
+        }
+
     def vector_search(self, query: str, top_k: int = 20) -> list[dict]:
         if self._collection.count() == 0:
             return []
@@ -322,3 +510,32 @@ class LiteratureIndex:
         if result["ids"]:
             return {"chunk_id": chunk_id, "text": result["documents"][0], "metadata": result["metadatas"][0]}
         return None
+
+
+def rebuild_full_index(
+    index: LiteratureIndex,
+    papers: list[dict],
+    folder: str,
+    config: dict,
+    progress_cb: Callable[[str, float], None] | None = None,
+) -> dict[str, Any]:
+    completed = 0
+    failed = 0
+    errors: list[str] = []
+    for i, paper in enumerate(papers):
+        try:
+            if progress_cb:
+                progress_cb(f"重建 {paper.get('filename', i + 1)}", i / max(len(papers), 1))
+            index.rebuild_document_index(paper, folder, config)
+            completed += 1
+        except Exception as e:
+            failed += 1
+            errors.append(f"{paper.get('filename')}: {e}")
+    if progress_cb:
+        progress_cb("全量重建完成", 1.0)
+    return {
+        "completed_document_count": completed,
+        "failed_document_count": failed,
+        "error_messages": errors,
+        "status": "success" if failed == 0 else "partial",
+    }

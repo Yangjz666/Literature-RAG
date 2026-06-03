@@ -11,7 +11,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.chunker import chunk_paper
 from app.extractor import detect_query_type, extract_mechanism_info, extract_synthesis_info, extract_test_conditions
 from app.generator import generate_markdown_output, save_output
-from app.document_library import list_document_library
+from app.document_library import (
+    delete_document_records,
+    get_document_detail,
+    list_document_library,
+    rebuild_all_indexes,
+    rebuild_document_index,
+    reparse_document,
+)
 from app.indexer import LiteratureIndex, build_manifest_entry, get_changed_files, load_manifest, save_manifest
 from app.ingest import load_folder
 from app.llm_client import LLMClient
@@ -127,6 +134,130 @@ def render_document_library_page(folder_path: str, config: dict) -> None:
         for row in filtered
     ]
     st.dataframe(table_rows, use_container_width=True, hide_index=True)
+
+    if not filtered:
+        return
+
+    st.divider()
+    st.subheader("文献详情")
+    options = {f"{row.get('filename')} | {row.get('document_id')}": row for row in filtered}
+    selected_label = st.selectbox("选择文献", list(options))
+    selected = options[selected_label]
+    document_id = selected["document_id"]
+
+    index_for_detail = None
+    try:
+        index_for_detail = get_index(config)
+    except RuntimeError as e:
+        st.warning(f"索引对象暂不可用，chunk 预览和索引操作会受限：{e}")
+
+    detail = get_document_detail(document_id, folder_path, config, index=index_for_detail)
+    report_detail = detail["parse_report"]
+    status_record = detail["index_status"] or {}
+
+    meta_cols = st.columns(4)
+    meta_cols[0].metric("解析状态", selected.get("parse_status") or "unknown")
+    meta_cols[1].metric("索引状态", selected.get("index_status") or "not_indexed")
+    meta_cols[2].metric("chunk", int(selected.get("chunk_count") or 0))
+    meta_cols[3].metric("SI", "是" if selected.get("is_si") else "否")
+
+    st.write("**索引阶段与失败信息**")
+    st.dataframe(
+        [
+            {
+                "status": status_record.get("status", "not_indexed"),
+                "failure_stage": status_record.get("failure_stage") or "",
+                "failure_reason": status_record.get("failure_reason") or "",
+                "last_operation_type": status_record.get("last_operation_type") or "",
+                "last_operation_id": status_record.get("last_operation_id") or "",
+                "updated_at": status_record.get("updated_at") or "",
+            }
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+    if detail.get("latest_operation"):
+        with st.expander("最近一次操作摘要"):
+            st.json(detail["latest_operation"])
+
+    st.write("**parse_report 摘要**")
+    if report_detail["exists"]:
+        st.dataframe([report_detail["summary"]], use_container_width=True, hide_index=True)
+        with st.expander("parse_report 原始 JSON"):
+            st.json(report_detail["raw"])
+    else:
+        st.info(report_detail["error_message"])
+
+    st.write("**chunk 预览**")
+    if detail["chunk_previews"]:
+        st.dataframe(detail["chunk_previews"], use_container_width=True, hide_index=True)
+    else:
+        st.info("当前没有可显示的 chunk 预览。可能尚未索引，或索引对象暂不可用。")
+
+    st.divider()
+    st.subheader("操作")
+    op_col1, op_col2, op_col3 = st.columns(3)
+    with op_col1:
+        if st.button("单篇重新解析", disabled=not selected.get("filepath")):
+            progress = st.progress(0.0)
+            status = st.empty()
+
+            def on_progress(message: str, value: float) -> None:
+                status.text(message)
+                progress.progress(value)
+
+            summary = reparse_document(document_id, folder_path, config, progress_cb=on_progress)
+            st.json(summary)
+            if summary["status"] == "success":
+                st.success("单篇重新解析完成。")
+            else:
+                st.error("单篇重新解析失败，旧 parse_report 已保留。")
+    with op_col2:
+        if st.button("单篇重建索引", disabled=index_for_detail is None or not selected.get("filepath")):
+            progress = st.progress(0.0)
+            status = st.empty()
+
+            def on_progress(message: str, value: float) -> None:
+                status.text(message)
+                progress.progress(value)
+
+            summary = rebuild_document_index(document_id, folder_path, config, index_for_detail, progress_cb=on_progress)
+            st.json(summary)
+            if summary["status"] == "success":
+                st.success("单篇索引重建完成。")
+            else:
+                st.error("单篇索引重建失败，旧可用状态已保留并记录失败阶段。")
+    with op_col3:
+        if st.button("全量重建索引", disabled=index_for_detail is None or not folder_path):
+            progress = st.progress(0.0)
+            status = st.empty()
+
+            def on_progress(message: str, value: float) -> None:
+                status.text(message)
+                progress.progress(value)
+
+            summary = rebuild_all_indexes(folder_path, config, index_for_detail, progress_cb=on_progress)
+            st.json(summary)
+            if summary["status"] == "success":
+                st.success("全量重建索引完成。")
+            else:
+                st.warning("全量重建索引部分完成，请查看失败摘要。")
+
+    st.write("**删除关联记录**")
+    st.caption("该操作只清理系统关联记录，默认不会删除原始 PDF 文件。")
+    confirm = st.text_input("输入文件名确认删除关联记录", value="", key=f"delete_confirm_{document_id}")
+    if st.button("删除该文献关联记录", type="secondary", disabled=confirm != selected.get("filename")):
+        summary = delete_document_records(document_id, folder_path, config, index=index_for_detail)
+        st.json(summary)
+        result_rows = [
+            {"item": key, "status": value.get("status"), "reason": value.get("reason")}
+            for key, value in summary.get("results", {}).items()
+        ]
+        st.dataframe(result_rows, use_container_width=True, hide_index=True)
+        if summary["status"] == "success":
+            st.success("关联记录清理完成，原始 PDF 文件未删除。")
+        else:
+            st.error("关联记录清理部分失败，请查看失败项和原因。")
 
 
 st.set_page_config(page_title="CO2RR 文献 RAG Agent", layout="wide")

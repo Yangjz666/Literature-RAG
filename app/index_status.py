@@ -26,6 +26,10 @@ VALID_INDEX_STATUSES = {
 
 DEFAULT_INDEX_STATUS_PATH = "./data/index_status.json"
 VALID_OPERATION_TYPES = {"reparse", "rebuild_index", "full_rebuild", "delete"}
+OPERATION_STATUS_RUNNING = "running"
+OPERATION_STATUS_SUCCESS = "success"
+OPERATION_STATUS_PARTIAL = "partial"
+OPERATION_STATUS_FAILED = "failed"
 
 
 def now_iso() -> str:
@@ -126,21 +130,75 @@ def update_document_status(
     return current
 
 
+def get_document_status(
+    document_id: str,
+    path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+) -> dict[str, Any] | None:
+    data = load_index_status(path)
+    return data.get("documents", {}).get(document_id)
+
+
+def mark_stage(
+    document_id: str,
+    stage: str,
+    filename: str = "",
+    chunk_count: int | None = None,
+    path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+    operation_id: str | None = None,
+    operation_type: str | None = None,
+) -> dict[str, Any]:
+    stage_updates = {
+        STATUS_PARSING: {"status": STATUS_PARSING},
+        STATUS_PARSED: {"status": STATUS_PARSED, "parse_completed": True},
+        STATUS_CHUNKED: {"status": STATUS_CHUNKED, "parse_completed": True, "chunks_generated": True},
+        STATUS_EMBEDDING: {
+            "status": STATUS_EMBEDDING,
+            "parse_completed": True,
+            "chunks_generated": True,
+        },
+        STATUS_INDEXED: {
+            "status": STATUS_INDEXED,
+            "parse_completed": True,
+            "chunks_generated": True,
+            "embedding_completed": True,
+            "vector_index_written": True,
+            "keyword_index_written": True,
+            "parent_store_written": True,
+            "failure_stage": None,
+            "failure_reason": None,
+        },
+    }
+    if stage not in stage_updates:
+        raise ValueError(f"index stage 不合法: {stage!r}")
+    updates = dict(stage_updates[stage])
+    if filename:
+        updates["filename"] = filename
+    if chunk_count is not None:
+        updates["chunk_count"] = int(chunk_count)
+    if operation_id:
+        updates["last_operation_id"] = operation_id
+    if operation_type:
+        updates["last_operation_type"] = operation_type
+    return update_document_status(document_id, updates, path=path)
+
+
 def record_failure(
     document_id: str,
     stage: str,
     reason: str,
     path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+    filename: str = "",
+    operation_id: str | None = None,
+    operation_type: str | None = None,
 ) -> dict[str, Any]:
-    return update_document_status(
-        document_id,
-        {
-            "status": STATUS_FAILED,
-            "failure_stage": stage,
-            "failure_reason": reason,
-        },
-        path=path,
-    )
+    updates = {"status": STATUS_FAILED, "failure_stage": stage, "failure_reason": reason}
+    if filename:
+        updates["filename"] = filename
+    if operation_id:
+        updates["last_operation_id"] = operation_id
+    if operation_type:
+        updates["last_operation_type"] = operation_type
+    return update_document_status(document_id, updates, path=path)
 
 
 def build_operation_summary(
@@ -172,3 +230,31 @@ def build_operation_summary(
     }
     summary.update(fields)
     return summary
+
+
+def save_operation_summary(
+    summary: dict[str, Any],
+    path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+) -> dict[str, Any]:
+    if summary.get("operation_type") not in VALID_OPERATION_TYPES:
+        raise ValueError(f"operation_type 不合法: {summary.get('operation_type')!r}")
+    operation_id = str(summary.get("operation_id") or "")
+    if not operation_id:
+        raise ValueError("operation summary 缺少 operation_id")
+    data = load_index_status(path)
+    summary["updated_at"] = now_iso()
+    data.setdefault("operations", {})[operation_id] = summary
+    save_index_status(data, path)
+    return summary
+
+
+def cleanup_document_status(
+    document_id: str,
+    path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+) -> dict[str, Any]:
+    data = load_index_status(path)
+    if document_id not in data.get("documents", {}):
+        return {"target": "index_status", "status": "skipped", "reason": "index_status 中无该文献"}
+    del data["documents"][document_id]
+    save_index_status(data, path)
+    return {"target": "index_status", "status": "success", "reason": "已删除该文献状态记录"}

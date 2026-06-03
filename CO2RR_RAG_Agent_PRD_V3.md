@@ -46,6 +46,17 @@ V3 最终目标：
 - 系统可部署；
 - 项目可展示。
 
+## 3.1 Feature 001 已实现范围
+
+截至 2026-06-03，`Feature 001：文献库管理与索引透明化` 已完成文献库管理第一阶段能力：
+
+- 文献库列表：聚合本地 PDF/SI、`index_manifest.json`、`parse_reports/` 和 `index_status.json`。
+- 文献详情：展示 parse_report 摘要与原始 JSON、index_status、失败阶段、失败原因、最近一次操作和 chunk 预览。
+- 管理操作：支持单篇重新解析、单篇重建索引、全量重建索引和删除文献关联记录。
+- 删除保护：删除关联记录默认不删除原始 PDF，并逐项报告 manifest、parse_report、ChromaDB、BM25、parent store、index_status 的清理结果。
+
+本 feature 明确不包含完整 Debug Trace、citation verification、FastAPI、Docker、数据库迁移、联网下载文献或 V1/V2 主流程重写。
+
 ---
 
 ## 4. V3 总体架构

@@ -12,7 +12,9 @@ from app.parse_report import (
     diff_parse_reports,
     generate_document_id,
     list_parse_reports,
+    load_parse_report_detail,
     load_parse_report,
+    delete_parse_report,
     save_parse_report,
 )
 
@@ -75,3 +77,46 @@ def test_diff_parse_reports_reports_changed_fields():
 
     assert diff["parse_status"] == {"old": "failed", "new": "success"}
     assert diff["chunks_created"] == {"old": 0, "new": 3}
+
+
+def test_parse_report_detail_includes_failed_report_summary(tmp_path):
+    report = build_parse_report(
+        document_id="doc_failed",
+        filename="bad.pdf",
+        parse_status=PARSE_STATUS_FAILED,
+        error_message="无法打开文件",
+    )
+    save_parse_report(report, tmp_path)
+
+    detail = load_parse_report_detail("doc_failed", tmp_path)
+
+    assert detail["exists"] is True
+    assert detail["summary"]["parse_status"] == PARSE_STATUS_FAILED
+    assert detail["summary"]["error_message"] == "无法打开文件"
+    assert detail["raw"] == report
+
+
+def test_parse_report_detail_missing_shape(tmp_path):
+    detail = load_parse_report_detail("missing", tmp_path)
+
+    assert detail["exists"] is False
+    assert detail["raw"] is None
+    assert "未找到" in detail["error_message"]
+
+
+def test_delete_parse_report_only_removes_target_report(tmp_path):
+    report = build_parse_report(
+        document_id="doc_delete",
+        filename="paper.pdf",
+        parse_status=PARSE_STATUS_SUCCESS,
+        pages_total=1,
+        pages_parsed=1,
+    )
+    save_parse_report(report, tmp_path)
+
+    result = delete_parse_report("doc_delete", tmp_path)
+    missing = delete_parse_report("doc_delete", tmp_path)
+
+    assert result["status"] == "success"
+    assert missing["status"] == "skipped"
+    assert load_parse_report("doc_delete", tmp_path) is None

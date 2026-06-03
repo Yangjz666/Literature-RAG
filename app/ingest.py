@@ -8,6 +8,15 @@ from pathlib import Path
 
 import fitz  # PyMuPDF
 
+from app.parse_report import (
+    PARSE_STATUS_FAILED,
+    PARSE_STATUS_PARTIAL,
+    PARSE_STATUS_SUCCESS,
+    build_parse_report,
+    generate_document_id,
+    save_parse_report,
+)
+
 logger = logging.getLogger(__name__)
 
 SI_KEYWORDS = ("si", "supporting", "supplementary", "esi")
@@ -153,3 +162,83 @@ def load_folder(folder: str, timeout_sec: int = 60, tesseract_cmd: str = "") -> 
         })
 
     return deduplicate_papers(raw)
+
+
+def parse_single_file(
+    pdf_path: str,
+    root_dir: str | None = None,
+    timeout_sec: int = 60,
+    tesseract_cmd: str = "",
+    parse_report_dir: str = "./data/parse_reports",
+    write_report: bool = True,
+) -> dict:
+    """解析单个 PDF，返回 paper、report、warnings，保持 load_folder 行为不变。"""
+    path = Path(pdf_path)
+    root = Path(root_dir) if root_dir else path.parent
+    document_id = generate_document_id(path, root)
+    filename = path.name
+    is_si = is_supporting_information(filename)
+    warnings: list[str] = []
+
+    parsed = extract_text(str(path), timeout_sec=timeout_sec, tesseract_cmd=tesseract_cmd)
+    if parsed.get("error"):
+        report = build_parse_report(
+            document_id=document_id,
+            filename=filename,
+            filepath=str(path),
+            parse_status=PARSE_STATUS_FAILED,
+            is_si=is_si,
+            error_message=parsed["error"],
+            warnings=warnings,
+        )
+        if write_report:
+            save_parse_report(report, parse_report_dir)
+        return {"paper": None, "report": report, "warnings": warnings, "error": parsed["error"]}
+
+    pages = parsed.get("pages") or []
+    text_length = sum(len(page.get("text") or "") for page in pages)
+    pages_parsed = sum(1 for page in pages if (page.get("text") or "").strip())
+    used_ocr = any(bool(page.get("used_ocr")) for page in pages)
+    if pages and pages_parsed < len(pages):
+        warnings.append("部分页面未解析出文本")
+    parse_status = PARSE_STATUS_SUCCESS if pages_parsed == len(pages) else PARSE_STATUS_PARTIAL
+
+    meta = parsed.get("meta") or {}
+    title = meta.get("title", "")
+    author = meta.get("author", "")
+    if title:
+        paper_name = title[:80]
+    elif author:
+        paper_name = author.split(",")[0].split(";")[0].strip()
+    else:
+        paper_name = path.stem
+
+    paper = {
+        "document_id": document_id,
+        "filename": filename,
+        "filepath": str(path),
+        "paper_name": paper_name,
+        "doi": meta.get("doi"),
+        "content_hash": _content_hash(str(path)),
+        "is_si": is_si,
+        "pages": pages,
+        "meta": meta,
+    }
+    report = build_parse_report(
+        document_id=document_id,
+        filename=filename,
+        filepath=str(path),
+        paper_title=paper_name,
+        doi=meta.get("doi"),
+        is_si=is_si,
+        metadata_source={"title": "pdf_metadata" if title else "filename", "doi": "text_regex"},
+        parse_status=parse_status,
+        pages_total=len(pages),
+        pages_parsed=pages_parsed,
+        text_length=text_length,
+        ocr_used=used_ocr,
+        warnings=warnings,
+    )
+    if write_report:
+        save_parse_report(report, parse_report_dir)
+    return {"paper": paper, "report": report, "warnings": warnings, "error": None}
