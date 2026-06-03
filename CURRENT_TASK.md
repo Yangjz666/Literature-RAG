@@ -4,25 +4,38 @@
 
 - Feature 名称：文献库管理与索引透明化
 - Feature 目录：`specs/001-library-index-transparency/`
-- 当前分支：`v2-dev`
-- 当前状态：正在将 001-library-index-transparency / US3 改动合并到 `v2-dev`，本轮只处理 merge 冲突、测试和进度文档同步
-- 当前完成范围：Phase 1 至 Phase 5 / US3，T001-T049
-- 剩余任务：
-  - US4：T050-T060
-  - Polish：T061-T068
-- 本轮临时限制：不执行 git commit，不执行 git push，最后由用户手动提交和 push
+- 当前分支：`feature/001-library-index-transparency-us4`
+- 当前阶段：Phase 6 / US4 删除文献及关联记录
+- 当前完成范围：T001-T060
+- 本轮完成任务：T050-T060
+- 剩余任务：Polish T061-T068
+- 本轮限制：不执行 git commit，不执行 merge，不执行 git push，由用户手动提交、合并和 push
 
-## 本次收尾目标
+## 本次完成内容
 
-解决当前 merge 冲突，保留 `v2-dev` 已有 US1/US2 能力，并合入 US3「重新解析与重建索引」能力：
+- 实现删除文献关联记录的逐项摘要增强：
+  - `manifest`
+  - `parse_report`
+  - `chunks`
+  - `vector_index`
+  - `keyword_index`
+  - `parent_store`
+  - `index_status`
+- 删除操作默认不删除原始 PDF 文件。
+- 删除操作失败时按项返回 `success` / `failed` / `skipped` 和 `reason`，不会因为单项失败导致整个流程崩溃。
+- 删除后保存 delete operation summary。
+- 删除后文献库状态会回落为本地 PDF 的未解析/未索引状态，旧 `document_id`、manifest、parse_report 和 index_status 记录被清理。
+- UI 删除区继续要求输入文件名确认，并新增主文献 / Supporting Information 关联影响提示。
+- 新增索引层删除测试，覆盖按 `document_id` 删除 ChromaDB 记录、BM25 重建和 parent store 清理。
 
-- 文献库列表、单篇详情、chunk preview、index_status 展示继续保留；
-- 单篇重新解析、单篇重建索引、全量重建索引入口继续保留；
-- operation summary、failure_stage、failure_reason 继续记录和展示；
-- 不删除原始 PDF；
-- 不修改 `.env`；
-- 不修改 `data/`；
-- 不引入数据库、FastAPI、Docker、Debug Trace 或 citation verification。
+## 修改文件
+
+- `app/document_library.py`
+- `ui/streamlit_app.py`
+- `tests/test_document_library.py`
+- `tests/test_indexer_delete.py`
+- `CURRENT_TASK.md`
+- `specs/001-library-index-transparency/PROGRESS.md`
 
 ## 已完成任务
 
@@ -31,74 +44,73 @@
 - Phase 3：US1 文献库列表 MVP，T016-T027
 - Phase 4：US2 单篇文献详情页，T028-T036
 - Phase 5：US3 重新解析与重建索引，T037-T049
+- Phase 6：US4 删除文献及关联记录，T050-T060
 
-## 本轮冲突处理记录
+## 未完成任务
 
-- 冲突文件：
-  - `CURRENT_TASK.md`
-  - `app/document_library.py`
-  - `app/index_status.py`
-  - `app/indexer.py`
-  - `specs/001-library-index-transparency/PROGRESS.md`
-  - `tests/test_index_status.py`
-  - `tests/test_parse_report.py`
-  - `ui/streamlit_app.py`
-- 已暂存但仍需纳入最终 merge resolution：
-  - `app/ingest.py`
-- 处理原则：
-  - 代码文件按函数职责合并，不简单选择 current 或 incoming；
-  - 测试文件保留旧测试并合入 US3 新测试；
-  - UI 保留文献查询入口、文献库管理、单篇详情和 US3 操作入口；
-  - 文档整理为 T001-T049 已完成，US4/Polish 未完成。
+- Polish T061-T068：
+  - 用户文档和 README 同步；
+  - V3 规划文档同步；
+  - 最终回归和安全检查；
+  - 完整交付总结。
 
 ## 测试记录
 
 ```bash
-.venv/bin/python -m py_compile app/ingest.py app/indexer.py app/document_library.py app/index_status.py ui/streamlit_app.py
+.venv/bin/python -m py_compile app/indexer.py app/document_library.py app/index_status.py app/parse_report.py ui/streamlit_app.py
 ```
 
 结果：通过，无输出
 
 ```bash
-.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py -q
+.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py tests/test_indexer_delete.py -q
 ```
 
-结果：30 passed in 0.81s
+结果：32 passed in 0.69s
 
 ```bash
 .venv/bin/python -m pytest
 ```
 
-结果：147 passed in 1.06s
+结果：149 passed in 1.01s
 
-## 手动 Smoke Test
+```bash
+timeout 20 .venv/bin/python -m streamlit run ui/streamlit_app.py --server.headless true --server.port 8501
+```
 
-- Streamlit 浏览器内手动点击验证：未完成。本轮未启动浏览器进行人工点击，不会声称 UI 已手动验证。
-- 建议检查：
-  - 文献查询入口仍可访问；
+结果：Streamlit 启动成功，显示 Local URL `http://localhost:8501`，20 秒 timeout 后正常停止；未进行浏览器内手动点击验证。
+
+## Streamlit Smoke Test
+
+- 自动启动 smoke：已完成。
+- 浏览器内手动点击删除按钮：未完成，需要用户后续验证。
+- 建议手动检查：
   - 文献库管理页面能打开；
-  - 单篇详情、chunk preview、failure_stage / failure_reason 可见；
-  - 单篇重新解析、单篇重建索引、全量重建索引按钮存在且操作摘要可见。
+  - 单篇详情页删除区显示“不会删除原始 PDF”的提示；
+  - 删除前必须输入文件名确认；
+  - 删除后逐项显示 manifest、parse_report、chunks、vector_index、keyword_index、parent_store、index_status 的结果；
+  - 部分失败时能看到失败项和原因；
+  - 删除后的文献不再通过旧索引参与检索。
 
 ## Git 状态
 
 - 是否执行 git commit：否，本轮按用户要求不执行
+- 是否执行 merge：否，本轮按用户要求不执行
 - 是否执行 git push：否，本轮按用户要求不执行
-- 是否合并完成：冲突已解决且测试通过；待 `git add` 后由用户手动完成 merge commit
 
 ## 已知风险
 
-- UI 操作涉及真实 PDF、embedding 配置和 ChromaDB，本轮自动测试不能替代浏览器内真实点击验证；
-- 单篇重建索引会重新读取目标 PDF 以生成 chunk，但不会触发全库重建；
-- 全量重建只有用户明确点击“全量重建索引”才会触发；
-- 后续 US4 删除关联记录仍需继续遵守“不删除原始 PDF”默认行为。
+- 自动测试使用 fake collection / 临时文件，不会触碰真实 ChromaDB、真实 PDF 库或真实 API Key。
+- 真实删除操作仍建议先在小型测试文献夹验证。
+- 如果 ChromaDB、BM25 或 parent store 某项清理失败，系统会报告 partial，但用户需要根据失败原因决定是否重试或手动修复。
+- 原始 PDF 默认保留，因此删除关联记录后如果继续扫描本地文件夹，该 PDF 会以未解析/未索引状态重新出现在文献库列表中。
 
 ## 下一步建议
 
-1. 完成本轮测试并确认 `git status` 只剩待提交的 merge resolution。
-2. 用户手动执行 merge commit。
-3. 用户手动 push `v2-dev`。
-4. 后续继续 US4 T050-T060，再做 Polish T061-T068。
+1. 用户手动检查 `git diff`。
+2. 用户手动提交当前 US4 改动。
+3. 用户手动合并回 `v2-dev` 并 push。
+4. 后续进入 Polish T061-T068。
 
 ## 强制更新规则
 

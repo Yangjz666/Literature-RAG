@@ -245,6 +245,7 @@ def render_document_library_page(folder_path: str, config: dict) -> None:
 
     st.write("**删除关联记录**")
     st.caption("该操作只清理系统关联记录，默认不会删除原始 PDF 文件。")
+    st.warning("删除前请确认关联影响：如果该文献是主文献或 Supporting Information，相关解析和索引记录清理后可能需要重新解析/重建索引。")
     confirm = st.text_input("输入文件名确认删除关联记录", value="", key=f"delete_confirm_{document_id}")
     if st.button("删除该文献关联记录", type="secondary", disabled=confirm != selected.get("filename")):
         summary = delete_document_records(document_id, folder_path, config, index=index_for_detail)

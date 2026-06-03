@@ -4,11 +4,12 @@
 
 - Feature：`001-library-index-transparency`
 - 名称：文献库管理与索引透明化
-- 当前分支：`v2-dev`
-- 当前状态：US3 merge 收尾中
-- 本轮限制：只处理 merge 冲突、测试、进度文档同步和 `git add`；不执行 git commit，不执行 git push
-- 当前完成到：Phase 5 / US3，T001-T049
-- 剩余任务：US4 T050-T060；Polish T061-T068
+- 当前分支：`feature/001-library-index-transparency-us4`
+- 当前阶段：Phase 6 / US4 删除文献及关联记录
+- 当前完成到：T001-T060
+- 本轮完成任务：T050-T060
+- 剩余任务：Polish T061-T068
+- 本轮限制：不执行 git commit，不执行 merge，不执行 git push，由用户手动提交、合并和 push
 
 ## 总体目标
 
@@ -20,7 +21,7 @@
 - 支持单篇重新解析；
 - 支持单篇重建索引；
 - 支持全量重建索引；
-- 后续支持删除文献关联记录但默认不删除原始 PDF。
+- 支持删除文献关联记录，默认不删除原始 PDF。
 
 本 Feature 不引入数据库、FastAPI、Docker、完整 Debug Trace、citation verification 或联网下载能力。
 
@@ -32,77 +33,78 @@
 | Phase 2 | Foundational | T005-T015 | 已完成 | parse_report、index_status、operation summary 基础能力已实现 |
 | Phase 3 | US1 | T016-T027 | 已完成 | 文献库列表、筛选和 V1/V2 入口兼容已实现 |
 | Phase 4 | US2 | T028-T036 | 已完成 | 单篇详情、parse_report、chunk preview、failure_stage / failure_reason 展示已实现 |
-| Phase 5 | US3 | T037-T049 | 已完成 | 单篇重新解析、单篇重建索引、全量重建索引和操作摘要已合入 |
-| Phase 6 | US4 | T050-T060 | 未完成 | 删除文献关联记录仍待继续实现/验收 |
+| Phase 5 | US3 | T037-T049 | 已完成 | 单篇重新解析、单篇重建索引、全量重建索引和操作摘要已实现 |
+| Phase 6 | US4 | T050-T060 | 已完成 | 删除文献关联记录、逐项清理摘要、UI 确认和测试已完成 |
 | Phase 7 | Polish | T061-T068 | 未完成 | 用户文档、README、完整回归和最终验收仍待完成 |
 
-## 本轮 Merge 冲突处理
+## 本轮完成内容
 
-本轮正在将 001-library-index-transparency / US3 改动合并到 `v2-dev`，目标是保留 `v2-dev` 上已有 US1/US2 能力，同时合入 US3 能力。
+- T050：补充删除操作结果形状和 partial failure 测试。
+- T051：覆盖 index_status cleanup 与 delete operation summary 持久化。
+- T052：覆盖 manifest / parse_report 清理和删除后文献库状态回落。
+- T053：复用 `delete_parse_report()` 删除单篇 parse_report，不删除 PDF。
+- T054：复用 `remove_manifest_entry()` 按 `document_id` / filename 删除 manifest 记录。
+- T055：复用 `LiteratureIndex.remove_document_records()` 删除 ChromaDB vector records。
+- T056：删除后重建 BM25，并返回 `keyword_index` 清理摘要。
+- T057：按 `document_id` / filename 清理 parent store。
+- T058：增强 `delete_document_records()`，按项返回 `success` / `failed` / `skipped` 和 `reason`，并新增 `chunks` 分项。
+- T059：文献详情页删除入口要求输入文件名确认，提示不会删除原始 PDF，并提示主文献 / SI 关联影响。
+- T060：删除操作默认不删除原始 PDF，测试覆盖 `pdf.exists()`。
 
-冲突文件：
+## 修改文件
 
-- `CURRENT_TASK.md`
 - `app/document_library.py`
-- `app/index_status.py`
-- `app/indexer.py`
-- `specs/001-library-index-transparency/PROGRESS.md`
-- `tests/test_index_status.py`
-- `tests/test_parse_report.py`
 - `ui/streamlit_app.py`
-
-合并原则：
-
-- 不简单选择 current 或 incoming；
-- 后端按模块边界合并，保留列表、详情、chunk preview、删除辅助和 US3 reparse/rebuild 能力；
-- 测试保留旧测试并合入 US3 新测试；
-- UI 保留文献查询入口、文献库管理、单篇详情，同时展示单篇重新解析、单篇重建索引、全量重建索引和 operation summary；
-- 不删除原始 PDF，不修改 `.env`，不修改 `data/`。
-
-## 已完成内容
-
-- T001-T015：基础 Speckit、parse_report、index_status、operation summary 能力。
-- T016-T027：文献库列表 MVP、筛选、manifest 兼容、V1/V2 入口保留。
-- T028-T036：单篇详情、parse_report detail、chunk preview、failure_stage / failure_reason 展示。
-- T037-T049：单篇重新解析、单篇重建索引、全量重建索引、操作结果摘要、失败阶段/原因记录，且单篇操作不调用全库重建路径。
+- `tests/test_document_library.py`
+- `tests/test_indexer_delete.py`
+- `CURRENT_TASK.md`
+- `specs/001-library-index-transparency/PROGRESS.md`
 
 ## 未完成任务
 
-- US4 T050-T060：删除文献关联记录、manifest/parse_report/index_status/ChromaDB/BM25/parent store 清理、UI 确认与逐项结果展示。
-- Polish T061-T068：用户文档、README/V3 文档同步、完整回归测试记录、安全检查和最终交付总结。
+- Polish T061-T068：
+  - 用户文档和 README 同步；
+  - V3 规划文档同步；
+  - 最终回归和安全检查；
+  - 完整交付总结。
 
 ## 测试记录
 
 | 日期 | 分支 | 命令 | 结果 | 说明 |
 | --- | --- | --- | --- | --- |
-| 2026-06-03 | `v2-dev` | `.venv/bin/python -m py_compile app/ingest.py app/indexer.py app/document_library.py app/index_status.py ui/streamlit_app.py` | 通过，无输出 | 冲突解决后的语法检查 |
-| 2026-06-03 | `v2-dev` | `.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py -q` | 30 passed in 0.81s | parse_report、document_library、index_status 相关测试 |
-| 2026-06-03 | `v2-dev` | `.venv/bin/python -m pytest` | 147 passed in 1.06s | 完整测试 |
+| 2026-06-03 | `feature/001-library-index-transparency-us4` | `.venv/bin/python -m py_compile app/indexer.py app/document_library.py app/index_status.py app/parse_report.py ui/streamlit_app.py` | 通过，无输出 | US4 相关模块语法检查 |
+| 2026-06-03 | `feature/001-library-index-transparency-us4` | `.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py tests/test_indexer_delete.py -q` | 32 passed in 0.69s | US4 相关测试和基础状态测试 |
+| 2026-06-03 | `feature/001-library-index-transparency-us4` | `.venv/bin/python -m pytest` | 149 passed in 1.01s | 完整回归测试 |
+| 2026-06-03 | `feature/001-library-index-transparency-us4` | `timeout 20 .venv/bin/python -m streamlit run ui/streamlit_app.py --server.headless true --server.port 8501` | 启动成功，timeout 停止 | Streamlit Local URL 显示为 `http://localhost:8501`，未做浏览器内手动点击 |
 
-## 手动 Smoke Test
+## Streamlit Smoke Test
 
-- Streamlit 浏览器内手动点击验证：未完成。
-- 本轮只运行自动化测试，不声称 UI 已完成手动验证。
-- 需要用户后续手动检查文献查询入口、文献库管理、单篇详情、chunk preview、US3 三个按钮和 operation summary 展示。
+- 自动启动 smoke：已完成。
+- 浏览器内手动点击删除按钮：未完成。
+- 需要用户后续手动检查：
+  - 文献库管理页可打开；
+  - 单篇详情页删除区提示不会删除原始 PDF；
+  - 删除前必须输入文件名确认；
+  - 删除后逐项显示 manifest、parse_report、chunks、vector_index、keyword_index、parent_store、index_status 的结果；
+  - 部分失败时显示失败项和原因；
+  - 删除后的文献不再通过旧索引参与检索。
 
 ## Git 状态
 
-- 是否执行 git commit：否，按用户临时要求不执行。
-- 是否执行 git push：否，按用户临时要求不执行。
-- 是否已完成 merge commit：否，待用户手动提交。
-- 是否已合并回开发基线：当前处于 `v2-dev` MERGING 状态，待冲突解决和用户手动 merge commit。
+- 是否执行 git commit：否，按用户要求不执行。
+- 是否执行 merge：否，按用户要求不执行。
+- 是否执行 git push：否，按用户要求不执行。
 
 ## 风险与注意事项
 
-- 自动测试不依赖真实 API Key、真实 PDF 库或真实 ChromaDB，因此不能替代本地真实数据上的 UI 操作验收。
-- 单篇重建索引需要读取目标 PDF 以生成 chunk，但该路径不写 parse_report，不触发全量重建。
-- 全量重建必须用户明确点击按钮才会触发。
-- 后续 US4 删除关联记录必须继续保证默认不删除原始 PDF。
-- 不得提交 `.env`、API Key、`data/` 运行产物、ChromaDB、BM25 pickle 或 parent store。
+- 自动测试不依赖真实 API Key、真实 PDF 库或真实 ChromaDB，因此不能替代真实数据上的 UI 删除验收。
+- 原始 PDF 默认保留，因此删除关联记录后继续扫描本地文件夹时，该 PDF 会以未解析/未索引状态重新出现在文献库列表中。
+- 如果 ChromaDB、BM25 或 parent store 某项清理失败，summary 会返回 partial，用户需要根据失败原因重试或手动修复。
+- 本轮未开发 Debug Trace、citation verification、FastAPI、Docker、数据库或联网下载功能。
 
 ## 下一步计划
 
-1. `git add` 标记冲突已解决，不执行 commit/push。
-2. 用户手动完成 merge commit 和 push。
-3. 手动打开 Streamlit，检查文献查询入口、文献库管理页、单篇详情和 US3 三个操作入口。
-4. 后续继续 US4 T050-T060，再做 Polish T061-T068。
+1. 用户手动检查 `git diff`。
+2. 用户手动提交当前 US4 改动。
+3. 用户手动合并回 `v2-dev` 并 push。
+4. 后续进入 Polish T061-T068。

@@ -410,13 +410,34 @@ def test_delete_document_records_reports_each_item_and_keeps_pdf(tmp_path):
     assert {key for key in summary["results"]} >= {
         "manifest",
         "parse_report",
+        "chunks",
         "vector_index",
         "keyword_index",
         "parent_store",
         "index_status",
     }
     assert summary["results"]["manifest"]["status"] == "success"
+    assert summary["results"]["chunks"]["status"] == "success"
     assert load_parse_report("doc_delete", report_dir) is None
+    assert "doc_delete" not in load_index_status(status_path)["documents"]
+
+    rows = list_document_library(
+        folder,
+        {
+            "index_manifest_path": str(manifest_path),
+            "parse_report_dir": str(report_dir),
+            "index_status_path": str(status_path),
+        },
+    )
+    assert all(row["document_id"] != "doc_delete" for row in rows)
+    assert rows[0]["filename"] == "paper.pdf"
+    assert rows[0]["parse_status"] == "unknown"
+    assert rows[0]["index_status"] == "not_indexed"
+    assert rows[0]["chunk_count"] == 0
+
+    operation = load_index_status(status_path)["operations"][summary["operation_id"]]
+    assert operation["operation_type"] == "delete"
+    assert operation["results"]["index_status"]["status"] == "success"
 
 
 def test_delete_document_records_reports_partial_failure(tmp_path):
@@ -452,5 +473,6 @@ def test_delete_document_records_reports_partial_failure(tmp_path):
     )
 
     assert summary["status"] == "partial"
+    assert summary["results"]["chunks"]["status"] == "failed"
     assert summary["results"]["vector_index"]["status"] == "failed"
     assert "vector_index" in summary["error_messages"][0]

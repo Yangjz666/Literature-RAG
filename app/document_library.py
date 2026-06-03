@@ -506,6 +506,26 @@ def rebuild_all_indexes(
     return summary
 
 
+def _chunk_cleanup_result(results: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    vector_status = (results.get("vector_index") or {}).get("status")
+    parent_status = (results.get("parent_store") or {}).get("status")
+    statuses = [status for status in (vector_status, parent_status) if status]
+    if any(status == "failed" for status in statuses):
+        status = "failed"
+    elif any(status == "success" for status in statuses):
+        status = "success"
+    else:
+        status = "skipped"
+    return {
+        "target": "chunks",
+        "status": status,
+        "reason": (
+            f"vector_index={vector_status or 'unknown'}; "
+            f"parent_store={parent_status or 'unknown'}"
+        ),
+    }
+
+
 def delete_document_records(
     document_id: str,
     folder: str | Path,
@@ -541,6 +561,7 @@ def delete_document_records(
         results["vector_index"] = {"target": "vector_index", "status": "skipped", "reason": "未提供索引对象"}
         results["keyword_index"] = {"target": "keyword_index", "status": "skipped", "reason": "未提供索引对象"}
         results["parent_store"] = {"target": "parent_store", "status": "skipped", "reason": "未提供索引对象"}
+    results["chunks"] = _chunk_cleanup_result(results)
 
     try:
         results["index_status"] = cleanup_document_status(document_id, status_path)
