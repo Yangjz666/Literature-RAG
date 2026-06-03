@@ -7,13 +7,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.index_status import (
     STATUS_FAILED,
+    STATUS_EMBEDDING,
     STATUS_INDEXED,
     STATUS_CHUNKED,
     build_operation_summary,
     cleanup_document_status,
+    build_rebuild_summary,
     load_index_status,
     mark_stage,
     record_failure,
+    record_rebuild_stage,
     save_index_status,
     save_operation_summary,
     update_document_status,
@@ -89,6 +92,47 @@ def test_single_document_stage_update_only_changes_target(tmp_path):
     assert loaded["documents"]["doc_b"]["chunk_count"] == 5
 
 
+def test_single_document_rebuild_status_updates_only_target_and_records_failure(tmp_path):
+    path = tmp_path / "index_status.json"
+    update_document_status(
+        "doc_target",
+        {"filename": "target.pdf", "status": STATUS_INDEXED, "chunk_count": 3},
+        path=path,
+    )
+    update_document_status(
+        "doc_other",
+        {"filename": "other.pdf", "status": STATUS_INDEXED, "chunk_count": 9},
+        path=path,
+    )
+
+    record_rebuild_stage(
+        "doc_target",
+        STATUS_EMBEDDING,
+        path=path,
+        filename="target.pdf",
+        operation_id="op_rebuild_1",
+    )
+    record_failure(
+        "doc_target",
+        "embedding",
+        "quota exceeded",
+        path=path,
+        operation_id="op_rebuild_1",
+    )
+
+    loaded = load_index_status(path)
+    target = loaded["documents"]["doc_target"]
+    other = loaded["documents"]["doc_other"]
+
+    assert target["status"] == STATUS_FAILED
+    assert target["failure_stage"] == "embedding"
+    assert target["failure_reason"] == "quota exceeded"
+    assert target["last_operation_id"] == "op_rebuild_1"
+    assert other["status"] == STATUS_INDEXED
+    assert other["chunk_count"] == 9
+    assert other["failure_stage"] is None
+
+
 def test_full_rebuild_operation_summary_counts_are_persisted(tmp_path):
     path = tmp_path / "index_status.json"
     summary = build_operation_summary(
@@ -106,6 +150,28 @@ def test_full_rebuild_operation_summary_counts_are_persisted(tmp_path):
     assert loaded["operations"]["op_full"]["completed_document_count"] == 2
     assert loaded["operations"]["op_full"]["failed_document_count"] == 1
     assert loaded["operations"]["op_full"]["status"] == "partial"
+
+
+def test_full_rebuild_summary_counts_success_failed_and_skipped():
+    summary = build_rebuild_summary(
+        operation_id="op_full_1",
+        operation_type="full_rebuild",
+        results={
+            "doc_success": {"status": "success", "chunk_count": 4},
+            "doc_failed": {
+                "status": "failed",
+                "failure_stage": "embedding",
+                "failure_reason": "quota exceeded",
+            },
+            "doc_skipped": {"status": "skipped", "reason": "missing parse_report"},
+        },
+    )
+
+    assert summary["success_count"] == 1
+    assert summary["failed_count"] == 1
+    assert summary["skipped_count"] == 1
+    assert summary["total_document_count"] == 3
+    assert summary["results"]["doc_failed"]["failure_reason"] == "quota exceeded"
 
 
 def test_cleanup_document_status_reports_success_and_skipped(tmp_path):

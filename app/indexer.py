@@ -358,17 +358,7 @@ class LiteratureIndex:
             logger.info(f"从索引删除 {len(results['ids'])} 个 chunk（{filename}）")
 
         # 重建 BM25
-        existing = self._collection.get(include=["documents"])
-        if existing["documents"]:
-            tokenized = [t.lower().split() for t in existing["documents"]]
-            if BM25Okapi is None:
-                raise RuntimeError("rank-bm25 is required to build BM25 index.")
-            self._bm25 = BM25Okapi(tokenized)
-            self._bm25_ids = existing["ids"]
-        else:
-            self._bm25 = None
-            self._bm25_ids = []
-        self._save_bm25()
+        self._rebuild_bm25_from_collection()
 
         # 清理父 chunk store
         to_del = [k for k, v in self._parent_store.items() if v.get("filename") == filename]

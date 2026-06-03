@@ -4,130 +4,102 @@
 
 - Feature 名称：文献库管理与索引透明化
 - Feature 目录：`specs/001-library-index-transparency/`
-- 当前状态：US2 已完成并通过本轮验证，完整 Feature 未完成
-- 当前进度：已完成 Phase 1、Phase 2、US1、US2，T001-T036
-- 下一阶段：US3 重新解析与重建索引，T037-T049
-- 未完成任务：
-  - US3：T037-T049
+- 当前分支：`v2-dev`
+- 当前状态：正在将 001-library-index-transparency / US3 改动合并到 `v2-dev`，本轮只处理 merge 冲突、测试和进度文档同步
+- 当前完成范围：Phase 1 至 Phase 5 / US3，T001-T049
+- 剩余任务：
   - US4：T050-T060
   - Polish：T061-T068
-- 测试状态：
-  - MVP 相关测试记录：15 passed；
-  - manifest 兼容测试记录：1 passed，38 deselected；
-  - chunker 兼容测试记录：4 passed；
-  - 语法编译检查通过；
-  - US2 本轮测试：`.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py -q`，27 passed in 1.01s；
-  - US2 语法检查：`.venv/bin/python -m py_compile app/parse_report.py app/indexer.py app/document_library.py ui/streamlit_app.py`，通过；
-  - Streamlit smoke test：成功启动到 `http://localhost:8502`，20 秒超时退出为预期结束。
-- 已知风险：
-  - US3 和 US4 会涉及索引重建和删除关联记录，风险高于 MVP；
-  - 需要确保不删除原始 PDF；
-  - 需要确保不提交 `data/` 本地运行数据；
-  - 需要保持 V1 结构化抽取入口和 V2 文献综合入口不被破坏。
-- 下一步建议：
-  - 明确是否继续 US3：T037-T049；
-  - US3 开始前确认当前代码与 tasks.md 状态是否需要回退、拆分或继续；
-  - 完成后运行 pytest 和 Streamlit smoke test；
-  - 更新 `specs/001-library-index-transparency/PROGRESS.md` 和 `CURRENT_TASK.md`。
+- 本轮临时限制：不执行 git commit，不执行 git push，最后由用户手动提交和 push
 
-## Feature 001 当前完成范围
+## 本次收尾目标
 
-已完成：
+解决当前 merge 冲突，保留 `v2-dev` 已有 US1/US2 能力，并合入 US3「重新解析与重建索引」能力：
 
-- Phase 1：Setup，T001-T004；
-- Phase 2：Foundational，T005-T015；
-- Phase 3：US1 文献库列表 MVP，T016-T027。
-- Phase 4：US2 单篇文献详情页，T028-T036。
+- 文献库列表、单篇详情、chunk preview、index_status 展示继续保留；
+- 单篇重新解析、单篇重建索引、全量重建索引入口继续保留；
+- operation summary、failure_stage、failure_reason 继续记录和展示；
+- 不删除原始 PDF；
+- 不修改 `.env`；
+- 不修改 `data/`；
+- 不引入数据库、FastAPI、Docker、Debug Trace 或 citation verification。
 
-未完成：
+## 已完成任务
 
-- Phase 5：US3 重新解析与重建索引，T037-T049；
-- Phase 6：US4 删除文献关联记录，T050-T060；
-- Phase 7：Polish 文档、测试、验收、安全检查，T061-T068。
+- Phase 1：Setup，T001-T004
+- Phase 2：Foundational，T005-T015
+- Phase 3：US1 文献库列表 MVP，T016-T027
+- Phase 4：US2 单篇文献详情页，T028-T036
+- Phase 5：US3 重新解析与重建索引，T037-T049
 
-当前已完成 MVP 和 US2，完整 Feature 尚未完成。
+## 本轮冲突处理记录
 
-## 最近进度记录
-
-### 2026-06-03：完成并验证 US2 单篇文献详情页
-
-- 完成 task：T028-T036
-- 当前 Phase / User Story：Phase 4 / US2
-- 完成内容：
-  - parse_report detail loading 测试和读取接口；
-  - document detail item 测试，包括 chunk preview 和 index failure 字段；
-  - 单篇文献 chunk preview 查询；
-  - 单篇文献详情聚合；
-  - Streamlit 文献选择和详情面板；
-  - parse_report 摘要、原始 JSON、chunk preview、index stage、failure stage、failure reason、latest operation 展示。
-- 修改文件：
-  - 本轮未修改业务代码，验证当前代码中已有 US2 实现；
-  - `specs/001-library-index-transparency/PROGRESS.md`
+- 冲突文件：
   - `CURRENT_TASK.md`
-- 测试命令：
-  - `.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py -q`
-  - `.venv/bin/python -m py_compile app/parse_report.py app/indexer.py app/document_library.py ui/streamlit_app.py`
-  - `.venv/bin/python -m streamlit run ui/streamlit_app.py`
-- 测试结果：
-  - 27 passed in 1.01s；
-  - 语法检查通过；
-  - Streamlit 成功启动到 `http://localhost:8502`，20 秒超时退出为预期结束。
-- 手动 smoke test：已完成启动 smoke；未使用真实 PDF/Embedding 做详情页人工点击验收。
-- 是否提交：否，本轮按要求不执行 git commit
-- 是否合并：否，本轮未合并
-- 是否 push：否，本轮按要求不执行 git push
-- 尚未完成 task：
-  - US3：T037-T049
-  - US4：T050-T060
-  - Polish：T061-T068
-- 已知风险：
-  - 当前仓库代码中已存在 US3/US4 相关实现痕迹，但本轮未新增、未修改、未验证 US3/US4；
-  - chunk preview 依赖本地 ChromaDB / parent store 和 embedding 配置可用；
-  - 未用真实文献库手动点击验证详情页。
-- 下一步建议：
-  - 明确是否继续 US3：T037-T049；
-  - US3 开始前确认当前代码与 tasks.md 状态是否需要回退、拆分或继续。
-
-### 2026-06-03：初始化 Feature 001 进度文档
-
-- 完成 task：文档维护任务；不改变 `tasks.md` 任务完成状态
-- 完成内容：
-  - 新增 `specs/001-library-index-transparency/PROGRESS.md`；
-  - 更新根目录 `CURRENT_TASK.md`；
-  - 明确当前按 MVP 状态记录：T001-T027 已完成，T028-T068 未完成；
-  - 加入后续 task 完成后的强制进度更新规则。
-- 修改文件：
+  - `app/document_library.py`
+  - `app/index_status.py`
+  - `app/indexer.py`
   - `specs/001-library-index-transparency/PROGRESS.md`
-  - `CURRENT_TASK.md`
-- 测试命令：未运行，文档更新无业务代码改动
-- 测试结果：待重新运行
-- 手动 smoke test：未运行
-- 是否提交：否，本次按要求不执行 git commit
-- 是否合并：否，本次按要求不执行合并
-- 是否 push：否，本次按要求不执行 git push
-- 已知风险：
-  - 当前仍需实现 US2、US3、US4 和 Polish；
-  - 后续 US3/US4 触及索引重建和删除关联记录，需要小步实现和测试。
-- 下一步建议：
-  - 从 `v2-dev` 创建 `feature/001-library-index-transparency-complete`；
-  - 先实现 US2：T028-T036 单篇文献详情页；
-  - 每完成 task 后同步更新 `PROGRESS.md` 和 `CURRENT_TASK.md`。
+  - `tests/test_index_status.py`
+  - `tests/test_parse_report.py`
+  - `ui/streamlit_app.py`
+- 已暂存但仍需纳入最终 merge resolution：
+  - `app/ingest.py`
+- 处理原则：
+  - 代码文件按函数职责合并，不简单选择 current 或 incoming；
+  - 测试文件保留旧测试并合入 US3 新测试；
+  - UI 保留文献查询入口、文献库管理、单篇详情和 US3 操作入口；
+  - 文档整理为 T001-T049 已完成，US4/Polish 未完成。
+
+## 测试记录
+
+```bash
+.venv/bin/python -m py_compile app/ingest.py app/indexer.py app/document_library.py app/index_status.py ui/streamlit_app.py
+```
+
+结果：通过，无输出
+
+```bash
+.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py -q
+```
+
+结果：30 passed in 0.81s
+
+```bash
+.venv/bin/python -m pytest
+```
+
+结果：147 passed in 1.06s
+
+## 手动 Smoke Test
+
+- Streamlit 浏览器内手动点击验证：未完成。本轮未启动浏览器进行人工点击，不会声称 UI 已手动验证。
+- 建议检查：
+  - 文献查询入口仍可访问；
+  - 文献库管理页面能打开；
+  - 单篇详情、chunk preview、failure_stage / failure_reason 可见；
+  - 单篇重新解析、单篇重建索引、全量重建索引按钮存在且操作摘要可见。
+
+## Git 状态
+
+- 是否执行 git commit：否，本轮按用户要求不执行
+- 是否执行 git push：否，本轮按用户要求不执行
+- 是否合并完成：冲突已解决且测试通过；待 `git add` 后由用户手动完成 merge commit
+
+## 已知风险
+
+- UI 操作涉及真实 PDF、embedding 配置和 ChromaDB，本轮自动测试不能替代浏览器内真实点击验证；
+- 单篇重建索引会重新读取目标 PDF 以生成 chunk，但不会触发全库重建；
+- 全量重建只有用户明确点击“全量重建索引”才会触发；
+- 后续 US4 删除关联记录仍需继续遵守“不删除原始 PDF”默认行为。
+
+## 下一步建议
+
+1. 完成本轮测试并确认 `git status` 只剩待提交的 merge resolution。
+2. 用户手动执行 merge commit。
+3. 用户手动 push `v2-dev`。
+4. 后续继续 US4 T050-T060，再做 Polish T061-T068。
 
 ## 强制更新规则
 
-每次完成一个需求、阶段、User Story 或 task 后，必须同步更新进度文档。
-
-更新内容至少包括：
-
-1. 本次完成了哪些 task 编号；
-2. 当前进行到 tasks.md 的哪个 Phase / User Story；
-3. 还有哪些 task 没完成；
-4. 修改了哪些文件；
-5. 执行了哪些测试命令；
-6. 测试是否通过；
-7. 是否做了 Streamlit 手动 smoke test；
-8. 是否存在风险；
-9. 下一步建议；
-10. 是否已经提交、合并、push。
-
-如果只完成部分任务，不得声称整个 Feature 已完成。
+每次完成一个需求、阶段、User Story 或 task 后，必须同步更新 `CURRENT_TASK.md` 和 `specs/001-library-index-transparency/PROGRESS.md`，记录完成 task、测试命令、测试结果、风险、下一步建议以及提交/合并/push 状态。

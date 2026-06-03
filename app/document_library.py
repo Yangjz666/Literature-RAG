@@ -7,15 +7,18 @@ from app.chunker import chunk_paper
 from app.index_status import (
     STATUS_CHUNKED,
     STATUS_EMBEDDING,
+    STATUS_FAILED,
     STATUS_INDEXED,
     STATUS_NOT_INDEXED,
     STATUS_PARSED,
+    STATUS_PARSING,
     build_operation_summary,
     cleanup_document_status,
     get_document_status,
     load_index_status,
     mark_stage,
     record_failure,
+    record_reparse_stage,
     save_operation_summary,
     update_document_status,
 )
@@ -258,61 +261,92 @@ def _find_document_item(document_id: str, folder: str | Path, config: dict[str, 
     return item
 
 
-def reparse_document(
-    document_id: str,
-    folder: str | Path,
+def _resolve_document(
+    document_id: str | None = None,
+    document: dict[str, Any] | None = None,
+    folder: str | Path | None = None,
     config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if document:
+        return dict(document)
+    if not document_id:
+        raise ValueError("需要 document_id 或 document")
+    return _find_document_item(document_id, folder or "", config or {})
+
+
+def _parse_document_file(
+    item: dict[str, Any],
+    folder: str | Path | None,
+    config: dict[str, Any],
+    parse_func: Any | None = None,
+) -> dict[str, Any]:
+    parser = parse_func or parse_single_file
+    filepath = item.get("filepath") or str(Path(folder or "") / str(item.get("filename") or ""))
+    kwargs = {
+        "root_dir": str(folder) if folder else None,
+        "timeout_sec": config.get("performance", {}).get("pdf_parse_timeout_sec", 60),
+        "tesseract_cmd": config.get("ocr", {}).get("tesseract_cmd", ""),
+        "write_report": False,
+    }
+    if parser is parse_single_file:
+        kwargs["parse_report_dir"] = config.get("parse_report_dir", DEFAULT_PARSE_REPORT_DIR)
+    else:
+        kwargs["report_dir"] = config.get("parse_report_dir", DEFAULT_PARSE_REPORT_DIR)
+    return parser(filepath, **kwargs)
+
+
+def reparse_document(
+    document_id: str | None = None,
+    folder: str | Path | None = None,
+    config: dict[str, Any] | None = None,
+    document: dict[str, Any] | None = None,
     progress_cb: Any | None = None,
+    parse_func: Any | None = None,
 ) -> dict[str, Any]:
     config = config or {}
-    item = _find_document_item(document_id, folder, config)
+    item = _resolve_document(document_id=document_id, document=document, folder=folder, config=config)
+    document_id = str(item.get("document_id") or document_id or "")
+    if not document_id:
+        raise ValueError("单篇重新解析需要 document_id")
     report_dir = config.get("parse_report_dir", DEFAULT_PARSE_REPORT_DIR)
     status_path = config.get("index_status_path", DEFAULT_INDEX_STATUS_PATH)
     operation_id = _operation_id("reparse", document_id)
     old_report = load_parse_report(document_id, report_dir)
-    old_status = get_document_status(document_id, status_path)
 
     try:
         if progress_cb:
             progress_cb("解析当前文献", 0.2)
-        mark_stage(
+        record_reparse_stage(
             document_id,
-            "parsing",
-            filename=item.get("filename") or "",
+            STATUS_PARSING,
             path=status_path,
+            filename=item.get("filename") or "",
             operation_id=operation_id,
-            operation_type="reparse",
         )
-        parsed = parse_single_file(
-            item.get("filepath") or str(Path(folder) / item["filename"]),
-            root_dir=str(folder) if folder else None,
-            timeout_sec=config.get("performance", {}).get("pdf_parse_timeout_sec", 60),
-            tesseract_cmd=config.get("ocr", {}).get("tesseract_cmd", ""),
-            parse_report_dir=report_dir,
-            write_report=False,
-        )
+        parsed = _parse_document_file(item, folder, config, parse_func=parse_func)
         if parsed.get("error"):
             raise RuntimeError(parsed["error"])
-        paper = parsed["paper"]
-        paper["document_id"] = document_id
-        chunks = chunk_paper(
-            paper,
-            child_max=config.get("chunking", {}).get("child_chunk_max_size", 300),
-            parent_max=config.get("chunking", {}).get("parent_chunk_size", 800),
-        )
         report = dict(parsed["report"])
         report["document_id"] = document_id
-        report["chunks_created"] = len(chunks["children"])
-        report["filename"] = item.get("filename") or report["filename"]
+        report["filename"] = item.get("filename") or report.get("filename")
+        paper = parsed.get("paper")
+        child_count = 0
+        if paper:
+            paper["document_id"] = document_id
+            chunks = chunk_paper(
+                paper,
+                child_max=config.get("chunking", {}).get("child_chunk_max_size", 300),
+                parent_max=config.get("chunking", {}).get("parent_chunk_size", 800),
+            )
+            child_count = len(chunks["children"])
+            report["chunks_created"] = child_count
         save_parse_report(report, report_dir)
-        mark_stage(
+        record_reparse_stage(
             document_id,
-            STATUS_CHUNKED,
-            filename=item.get("filename") or "",
-            chunk_count=len(chunks["children"]),
+            STATUS_PARSED,
             path=status_path,
+            filename=item.get("filename") or "",
             operation_id=operation_id,
-            operation_type="reparse",
         )
         if progress_cb:
             progress_cb("重新解析完成", 1.0)
@@ -322,8 +356,8 @@ def reparse_document(
             status="success",
             document_id=document_id,
             filename=item.get("filename"),
-            current_stage=STATUS_CHUNKED,
-            current_document_chunk_count=len(chunks["children"]),
+            current_stage=STATUS_PARSED,
+            current_document_chunk_count=child_count,
             old_state=old_report,
             new_state=report,
             diff=diff_parse_reports(old_report, report),
@@ -344,8 +378,12 @@ def reparse_document(
             status="failed",
             document_id=document_id,
             filename=item.get("filename"),
-            current_stage="parsing",
-            old_state=old_report or old_status,
+            current_stage=STATUS_FAILED,
+            failure_stage="parsing",
+            failure_reason=str(e),
+            old_state=old_report,
+            new_state=parsed.get("report") if "parsed" in locals() and isinstance(parsed, dict) else None,
+            diff=diff_parse_reports(old_report, parsed.get("report") if "parsed" in locals() and isinstance(parsed, dict) else None),
             error_messages=[str(e)],
         )
     save_operation_summary(summary, status_path)

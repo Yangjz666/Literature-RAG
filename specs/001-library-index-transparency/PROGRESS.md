@@ -1,203 +1,108 @@
 # Feature 001 开发进度：文献库管理与索引透明化
 
-## 1. Feature 基本信息
+## Feature 基本信息
 
-- Feature 名称：文献库管理与索引透明化
-- Feature 目录：`specs/001-library-index-transparency/`
-- 当前开发分支：`feature/001-library-index-transparency-us2`
-- 开发基线分支：`v2-dev`
-- 当前状态：US2 已完成并通过本轮验证，完整 Feature 尚未完成
-- 当前完成范围：Phase 1、Phase 2、Phase 3 / US1、Phase 4 / US2，T001-T036
-- 当前未完成范围：Phase 5 / US3、Phase 6 / US4、Phase 7 / Polish，T037-T068
-- 最近更新时间：2026-06-03
+- Feature：`001-library-index-transparency`
+- 名称：文献库管理与索引透明化
+- 当前分支：`v2-dev`
+- 当前状态：US3 merge 收尾中
+- 本轮限制：只处理 merge 冲突、测试、进度文档同步和 `git add`；不执行 git commit，不执行 git push
+- 当前完成到：Phase 5 / US3，T001-T049
+- 剩余任务：US4 T050-T060；Polish T061-T068
 
-## 2. 总体目标
+## 总体目标
 
-本 Feature 的目标是为 CO2RR RAG Agent 提供文献库管理与索引透明化能力：
+本 Feature 为 CO2RR Literature RAG Agent 增加文献库管理与索引透明化能力：
 
-- 文献可管理；
-- 索引可观察；
-- 支持文献库列表；
-- 支持单篇文献详情；
+- 查看本地 PDF/SI 文献库列表；
+- 聚合 manifest、parse_report 和 index_status；
+- 查看单篇详情、parse_report、chunk preview、索引阶段和失败原因；
 - 支持单篇重新解析；
 - 支持单篇重建索引；
-- 支持删除文献关联记录；
-- 支持文档、测试和验收记录。
+- 支持全量重建索引；
+- 后续支持删除文献关联记录但默认不删除原始 PDF。
 
-当前已完成 MVP 和 US2，完整 Feature 尚未完成。
+本 Feature 不引入数据库、FastAPI、Docker、完整 Debug Trace、citation verification 或联网下载能力。
 
-## 3. tasks.md 阶段进度
+## 阶段进度
 
-| Phase | User Story | Task 编号 | 内容 | 当前状态 | 备注 |
-|---|---|---|---|---|---|
-| Phase 1 | Setup | T001-T004 | 准备工作 | 已完成 | 已完成开发前范围确认、入口审查、配置路径确认和敏感信息检查 |
-| Phase 2 | Foundational | T005-T015 | parse_report、index_status 基础能力 | 已完成 | 已完成基础 JSON 状态、校验、读写和测试 |
-| Phase 3 | US1 | T016-T027 | 文献库列表 MVP | 已完成 | MVP 已完成并合并到 `v2-dev` |
-| Phase 4 | US2 | T028-T036 | 单篇文献详情页 | 已完成 | 本轮完成并验证 parse_report detail、document detail、chunk preview 和失败字段展示 |
-| Phase 5 | US3 | T037-T049 | 重新解析与重建索引 | 未完成 | 本轮未实现；涉及单篇解析、索引重建和全量重建，风险高于 MVP |
-| Phase 6 | US4 | T050-T060 | 删除文献关联记录 | 未完成 | 必须确保默认不删除原始 PDF |
-| Phase 7 | Polish | T061-T068 | 文档、测试、验收、安全检查 | 未完成 | 需随 US2-US4 完成后补齐 |
+| Phase | User Story | Tasks | 状态 | 说明 |
+| --- | --- | --- | --- | --- |
+| Phase 1 | Setup | T001-T004 | 已完成 | 开发范围、分支、路径和安全边界已确认 |
+| Phase 2 | Foundational | T005-T015 | 已完成 | parse_report、index_status、operation summary 基础能力已实现 |
+| Phase 3 | US1 | T016-T027 | 已完成 | 文献库列表、筛选和 V1/V2 入口兼容已实现 |
+| Phase 4 | US2 | T028-T036 | 已完成 | 单篇详情、parse_report、chunk preview、failure_stage / failure_reason 展示已实现 |
+| Phase 5 | US3 | T037-T049 | 已完成 | 单篇重新解析、单篇重建索引、全量重建索引和操作摘要已合入 |
+| Phase 6 | US4 | T050-T060 | 未完成 | 删除文献关联记录仍待继续实现/验收 |
+| Phase 7 | Polish | T061-T068 | 未完成 | 用户文档、README、完整回归和最终验收仍待完成 |
 
-## 4. 已完成内容
+## 本轮 Merge 冲突处理
 
-### 2026-06-03：US2 单篇文献详情页
+本轮正在将 001-library-index-transparency / US3 改动合并到 `v2-dev`，目标是保留 `v2-dev` 上已有 US1/US2 能力，同时合入 US3 能力。
 
-- 完成 task：T028-T036
-- 完成内容：
-  - T028：补充 parse_report detail loading 和 failed-report display data 测试；
-  - T029：补充 document detail item 测试，覆盖 chunk preview 和 index failure 字段；
-  - T030：实现通过 `document_id` 读取 parse_report detail；
-  - T031：实现单篇文献 chunk preview 查询；
-  - T032：实现单篇文献详情聚合；
-  - T033：在 Streamlit 文献库管理页添加文献选择和详情面板；
-  - T034：展示 parse_report 摘要和原始 JSON；
-  - T035：展示 chunk preview 表格；
-  - T036：展示 index stage、failure stage、failure reason 和 latest operation。
-- 修改文件：
-  - 本轮未修改业务代码；当前代码中已存在并验证 US2 相关实现；
-  - 本轮同步更新 `specs/001-library-index-transparency/PROGRESS.md`；
-  - 本轮同步更新根目录 `CURRENT_TASK.md`。
-- 验证文件：
-  - `app/parse_report.py`
-  - `app/indexer.py`
-  - `app/document_library.py`
-  - `ui/streamlit_app.py`
-  - `tests/test_parse_report.py`
-  - `tests/test_document_library.py`
-  - `tests/test_index_status.py`
-- 测试命令：
-  - `.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py -q`
-  - `.venv/bin/python -m py_compile app/parse_report.py app/indexer.py app/document_library.py ui/streamlit_app.py`
-  - `.venv/bin/python -m streamlit run ui/streamlit_app.py`
-- 测试结果：
-  - US2 相关 pytest：27 passed in 1.01s；
-  - 语法检查：通过；
-  - Streamlit smoke test：成功启动到 `http://localhost:8502`，20 秒超时退出为预期结束。
-- 手动 smoke test：已完成启动 smoke；未使用真实 PDF/Embedding 做详情页人工点击验收。
-- 是否提交：否，本轮按要求不执行 git commit
-- 是否合并：否，本轮未合并
-- 是否 push：否，本轮按要求不执行 git push
-- 已知风险：
-  - 当前仓库代码中已存在 US3/US4 相关实现痕迹，但本轮未新增、未修改、未验证 US3/US4；
-  - chunk preview 依赖本地 ChromaDB / parent store 和 embedding 配置可用；
-  - 未用真实文献库手动点击验证详情页。
-- 下一步建议：
-  - 明确是否继续 US3：T037-T049；
-  - 若继续 US3，应先确认当前代码与 tasks.md 状态是否需要回退或拆分；
-  - 继续保持每完成 task 后同步更新 `PROGRESS.md` 和 `CURRENT_TASK.md`。
+冲突文件：
 
-### 2026-06-03：MVP 阶段
+- `CURRENT_TASK.md`
+- `app/document_library.py`
+- `app/index_status.py`
+- `app/indexer.py`
+- `specs/001-library-index-transparency/PROGRESS.md`
+- `tests/test_index_status.py`
+- `tests/test_parse_report.py`
+- `ui/streamlit_app.py`
 
-- 完成 task：T001-T027
-- 完成内容：
-  - Phase 1：Setup，T001-T004；
-  - Phase 2：Foundational，T005-T015；
-  - Phase 3：US1 文献库列表 MVP，T016-T027；
-  - 已完成 parse_report / index_status 基础能力和文献库列表展示。
-- 修改文件：
-  - `app/parse_report.py`
-  - `app/index_status.py`
-  - `app/document_library.py`
-  - `app/chunker.py`
-  - `app/indexer.py`
-  - `ui/streamlit_app.py`
-  - `tests/test_parse_report.py`
-  - `tests/test_index_status.py`
-  - `tests/test_document_library.py`
-  - `config.yaml`
-  - `CURRENT_TASK.md`
-- 测试命令：
-  - `.venv/bin/python -m pytest tests/test_parse_report.py tests/test_index_status.py tests/test_document_library.py -q`
-  - `PYTHONPATH=. .venv/bin/pytest tests/test_acceptance.py -k "changed_files or manifest_saved" -q`
-  - `PYTHONPATH=. .venv/bin/pytest tests/test_acceptance.py::TestChunker -q`
-  - `python3 -m py_compile app/parse_report.py app/index_status.py app/document_library.py app/chunker.py app/indexer.py ui/streamlit_app.py`
-- 测试结果：
-  - MVP 相关测试记录：15 passed；
-  - manifest 兼容测试记录：1 passed，38 deselected；
-  - chunker 兼容测试记录：4 passed；
-  - 语法编译检查通过。
-- 手动 smoke test：待重新运行
-- 是否提交：已提交 MVP
-- 是否合并：已合并到 `v2-dev`
-- 已知风险：
-  - US2、US3、US4 尚未实现；
-  - 后续 US3 和 US4 涉及索引重建和删除关联记录，风险高于 MVP；
-  - 必须确保不删除原始 PDF，不提交 `data/` 本地运行数据。
-- 下一步建议：
-  - 从 `v2-dev` 创建 `feature/001-library-index-transparency-complete`；
-  - 先实现 US2：T028-T036 单篇文献详情页；
-  - 完成后运行 pytest 和 Streamlit smoke test；
-  - 同步更新 `PROGRESS.md` 和 `CURRENT_TASK.md`。
+合并原则：
 
-## 5. 当前未完成任务
+- 不简单选择 current 或 incoming；
+- 后端按模块边界合并，保留列表、详情、chunk preview、删除辅助和 US3 reparse/rebuild 能力；
+- 测试保留旧测试并合入 US3 新测试；
+- UI 保留文献查询入口、文献库管理、单篇详情，同时展示单篇重新解析、单篇重建索引、全量重建索引和 operation summary；
+- 不删除原始 PDF，不修改 `.env`，不修改 `data/`。
 
-- 未完成 Phase：
-  - Phase 5：US3；
-  - Phase 6：US4；
-  - Phase 7：Polish。
-- 未完成 User Story：
-  - US3 重新解析与重建索引；
-  - US4 删除文献关联记录。
-- 未完成 Task 编号：
-  - US3：T037-T049；
-  - US4：T050-T060；
-  - Polish：T061-T068。
-- 未完成原因：
-  - 本轮范围仅限 US2；
-  - 单篇重新解析、单篇重建索引、全量重建索引、删除关联记录和最终文档验收不在本轮范围内。
-- 建议下一步：
-  - 明确是否继续实现 US3：T037-T049；
-  - US3 开始前再次确认分支、工作区和当前 tasks.md 状态；
-  - 每完成一个 task 或阶段后同步更新本文件和根目录 `CURRENT_TASK.md`。
+## 已完成内容
 
-## 6. 测试记录
+- T001-T015：基础 Speckit、parse_report、index_status、operation summary 能力。
+- T016-T027：文献库列表 MVP、筛选、manifest 兼容、V1/V2 入口保留。
+- T028-T036：单篇详情、parse_report detail、chunk preview、failure_stage / failure_reason 展示。
+- T037-T049：单篇重新解析、单篇重建索引、全量重建索引、操作结果摘要、失败阶段/原因记录，且单篇操作不调用全库重建路径。
 
-| 日期 | 分支 | 测试命令 | 测试结果 | 备注 |
-|---|---|---|---|---|
-| 2026-06-03 | MVP 功能分支 / `v2-dev` | `.venv/bin/python -m pytest tests/test_parse_report.py tests/test_index_status.py tests/test_document_library.py -q` | 15 passed | MVP 阶段记录 |
-| 2026-06-03 | MVP 功能分支 / `v2-dev` | `PYTHONPATH=. .venv/bin/pytest tests/test_acceptance.py -k "changed_files or manifest_saved" -q` | 1 passed, 38 deselected | manifest 兼容检查 |
-| 2026-06-03 | MVP 功能分支 / `v2-dev` | `PYTHONPATH=. .venv/bin/pytest tests/test_acceptance.py::TestChunker -q` | 4 passed | chunker 兼容检查 |
-| 2026-06-03 | MVP 功能分支 / `v2-dev` | `python3 -m py_compile app/parse_report.py app/index_status.py app/document_library.py app/chunker.py app/indexer.py ui/streamlit_app.py` | 通过 | 语法检查 |
-| 2026-06-03 | `v2-dev` | `.venv/bin/python -m streamlit run ui/streamlit_app.py` | 待重新运行 | US2 开始前建议重新做 smoke test |
-| 2026-06-03 | `feature/001-library-index-transparency-us2` | `.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py -q` | 27 passed in 1.01s | US2 详情、chunk preview、失败字段相关测试通过 |
-| 2026-06-03 | `feature/001-library-index-transparency-us2` | `.venv/bin/python -m py_compile app/parse_report.py app/indexer.py app/document_library.py ui/streamlit_app.py` | 通过 | US2 相关模块语法检查 |
-| 2026-06-03 | `feature/001-library-index-transparency-us2` | `.venv/bin/python -m streamlit run ui/streamlit_app.py` | 成功启动，20 秒超时退出 | Streamlit smoke test，Local URL: `http://localhost:8502` |
+## 未完成任务
 
-## 7. 风险与注意事项
+- US4 T050-T060：删除文献关联记录、manifest/parse_report/index_status/ChromaDB/BM25/parent store 清理、UI 确认与逐项结果展示。
+- Polish T061-T068：用户文档、README/V3 文档同步、完整回归测试记录、安全检查和最终交付总结。
 
-- 是否引入数据库：否，当前 MVP 未引入数据库；后续也禁止引入数据库。
-- 是否修改 V1/V2 主流程：当前 MVP 未重写 V1/V2 主流程；后续必须继续保持。
-- 是否影响已有文献查询入口：当前 MVP 保留已有文献查询入口；后续 UI 改动需回归验证。
-- 是否影响文献综合入口：当前 MVP 保留 V2 文献综合入口；后续不得改变默认入口、参数和输出格式。
-- 是否涉及 ChromaDB、BM25、parent store：MVP 已涉及索引状态展示和 manifest 兼容；US3、US4 将直接涉及索引重建和清理，风险更高。
-- 是否涉及删除文献记录：MVP 未实现删除；US4 将涉及删除关联记录，必须逐项报告并默认不删除原始 PDF。
-- 是否有未完成的测试：US2 相关 pytest 和启动 smoke 已完成；US3、US4、Polish 测试尚未在本轮验证。
-- 是否有未提交或不应提交的 data 文件：当前记录未发现需要提交的 `data/` 文件；后续必须继续避免提交 `.env`、`data/chroma_db/`、BM25、parent store、manifest、parse_reports、output 和缓存。
+## 测试记录
 
-## 8. 下一步计划
+| 日期 | 分支 | 命令 | 结果 | 说明 |
+| --- | --- | --- | --- | --- |
+| 2026-06-03 | `v2-dev` | `.venv/bin/python -m py_compile app/ingest.py app/indexer.py app/document_library.py app/index_status.py ui/streamlit_app.py` | 通过，无输出 | 冲突解决后的语法检查 |
+| 2026-06-03 | `v2-dev` | `.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py -q` | 30 passed in 0.81s | parse_report、document_library、index_status 相关测试 |
+| 2026-06-03 | `v2-dev` | `.venv/bin/python -m pytest` | 147 passed in 1.06s | 完整测试 |
 
-- 下一步如继续 Feature 001，应进入 US3：T037-T049 重新解析与重建索引；
-- US3 开始前需要确认是否保留当前代码中已有的 US3/US4 实现痕迹，或按任务范围重新拆分；
-- US3 开始前建议运行：
-  - `.venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py -q`
-  - `.venv/bin/python -m streamlit run ui/streamlit_app.py`
-- 每完成一个需求、阶段、User Story 或 task 后，必须同步更新 `specs/001-library-index-transparency/PROGRESS.md` 和根目录 `CURRENT_TASK.md`。
+## 手动 Smoke Test
 
-## 9. 强制更新规则
+- Streamlit 浏览器内手动点击验证：未完成。
+- 本轮只运行自动化测试，不声称 UI 已完成手动验证。
+- 需要用户后续手动检查文献查询入口、文献库管理、单篇详情、chunk preview、US3 三个按钮和 operation summary 展示。
 
-每次完成一个需求、阶段、User Story 或 task 后，必须同步更新进度文档。
+## Git 状态
 
-更新内容至少包括：
+- 是否执行 git commit：否，按用户临时要求不执行。
+- 是否执行 git push：否，按用户临时要求不执行。
+- 是否已完成 merge commit：否，待用户手动提交。
+- 是否已合并回开发基线：当前处于 `v2-dev` MERGING 状态，待冲突解决和用户手动 merge commit。
 
-1. 本次完成了哪些 task 编号；
-2. 当前进行到 tasks.md 的哪个 Phase / User Story；
-3. 还有哪些 task 没完成；
-4. 修改了哪些文件；
-5. 执行了哪些测试命令；
-6. 测试是否通过；
-7. 是否做了 Streamlit 手动 smoke test；
-8. 是否存在风险；
-9. 下一步建议；
-10. 是否已经提交、合并、push。
+## 风险与注意事项
 
-如果只完成部分任务，不得声称整个 Feature 已完成。
+- 自动测试不依赖真实 API Key、真实 PDF 库或真实 ChromaDB，因此不能替代本地真实数据上的 UI 操作验收。
+- 单篇重建索引需要读取目标 PDF 以生成 chunk，但该路径不写 parse_report，不触发全量重建。
+- 全量重建必须用户明确点击按钮才会触发。
+- 后续 US4 删除关联记录必须继续保证默认不删除原始 PDF。
+- 不得提交 `.env`、API Key、`data/` 运行产物、ChromaDB、BM25 pickle 或 parent store。
+
+## 下一步计划
+
+1. `git add` 标记冲突已解决，不执行 commit/push。
+2. 用户手动完成 merge commit 和 push。
+3. 手动打开 Streamlit，检查文献查询入口、文献库管理页、单篇详情和 US3 三个操作入口。
+4. 后续继续 US4 T050-T060，再做 Polish T061-T068。
