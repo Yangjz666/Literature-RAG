@@ -1,7 +1,27 @@
+# Environment
 .env
+
+# Python cache
 __pycache__/
 *.pyc
 .pytest_cache/
 
-# Local generated ChromaDB index
-/data/chroma_db/
+# Virtual environment
+.venv/
+
+# Runtime data and local indexes
+data/chroma_db/
+data/chroma_db_backup_*/
+data/*.pkl
+data/*.sqlite3
+data/index_manifest.json
+data/index_status.json
+data/parse_reports/
+data/output/
+data/index_backup_*/
+data/chroma_backup_*/
+
+# Optional: local PDF/library files
+data/papers/
+data/pdf_excluded/
+data/eval/

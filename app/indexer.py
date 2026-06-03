@@ -13,6 +13,7 @@ except ImportError:  # pragma: no cover - only used when optional dependency is 
 from openai import OpenAI, OpenAIError, RateLimitError
 
 from app.llm_client import load_env_file
+from app.parse_report import generate_document_id
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,10 @@ def get_changed_files(folder: str, manifest: dict) -> tuple[list[str], list[str]
 def load_manifest(path: str) -> dict:
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            manifest = json.load(f)
+        if "files" not in manifest:
+            return {"last_updated": manifest.get("last_updated", ""), "files": manifest}
+        return manifest
     return {"last_updated": "", "files": {}}
 
 
@@ -58,6 +62,19 @@ def save_manifest(path: str, manifest: dict) -> None:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+
+def build_manifest_entry(folder: str, filename: str, chunk_count: int, status: str = "indexed", error: str | None = None) -> dict:
+    filepath = os.path.join(folder, filename)
+    return {
+        "document_id": generate_document_id(filepath, folder),
+        "filepath": filepath,
+        "fingerprint": get_file_fingerprint(filepath),
+        "chunk_count": chunk_count,
+        "status": status,
+        "error": error,
+        "updated_at": datetime.now().isoformat(),
+    }
 
 
 class LiteratureIndex:

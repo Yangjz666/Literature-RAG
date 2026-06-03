@@ -1,0 +1,174 @@
+from __future__ import annotations
+
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+
+STATUS_NOT_INDEXED = "not_indexed"
+STATUS_PARSING = "parsing"
+STATUS_PARSED = "parsed"
+STATUS_CHUNKED = "chunked"
+STATUS_EMBEDDING = "embedding"
+STATUS_INDEXED = "indexed"
+STATUS_FAILED = "failed"
+VALID_INDEX_STATUSES = {
+    STATUS_NOT_INDEXED,
+    STATUS_PARSING,
+    STATUS_PARSED,
+    STATUS_CHUNKED,
+    STATUS_EMBEDDING,
+    STATUS_INDEXED,
+    STATUS_FAILED,
+}
+
+DEFAULT_INDEX_STATUS_PATH = "./data/index_status.json"
+VALID_OPERATION_TYPES = {"reparse", "rebuild_index", "full_rebuild", "delete"}
+
+
+def now_iso() -> str:
+    return datetime.now().isoformat()
+
+
+def empty_index_status() -> dict[str, Any]:
+    return {"last_updated": "", "documents": {}, "operations": {}}
+
+
+def default_document_status(
+    document_id: str,
+    filename: str = "",
+    status: str = STATUS_NOT_INDEXED,
+) -> dict[str, Any]:
+    timestamp = now_iso()
+    return {
+        "document_id": document_id,
+        "filename": filename,
+        "status": status,
+        "parse_completed": False,
+        "chunks_generated": False,
+        "embedding_completed": False,
+        "vector_index_written": False,
+        "keyword_index_written": False,
+        "parent_store_written": False,
+        "chunk_count": 0,
+        "failure_stage": None,
+        "failure_reason": None,
+        "last_operation_id": None,
+        "last_operation_type": None,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+
+
+def validate_document_status(status_record: dict[str, Any]) -> None:
+    if not status_record.get("document_id"):
+        raise ValueError("index_status 缺少 document_id")
+    status = status_record.get("status")
+    if status not in VALID_INDEX_STATUSES:
+        raise ValueError(f"index_status 不合法: {status!r}")
+
+
+def validate_index_status(data: dict[str, Any]) -> None:
+    documents = data.get("documents", {})
+    if not isinstance(documents, dict):
+        raise ValueError("index_status documents 必须是对象")
+    for record in documents.values():
+        validate_document_status(record)
+
+
+def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp_path, path)
+
+
+def load_index_status(path: str | Path = DEFAULT_INDEX_STATUS_PATH) -> dict[str, Any]:
+    status_path = Path(path)
+    if not status_path.exists():
+        return empty_index_status()
+    with open(status_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    data.setdefault("last_updated", "")
+    data.setdefault("documents", {})
+    data.setdefault("operations", {})
+    validate_index_status(data)
+    return data
+
+
+def save_index_status(data: dict[str, Any], path: str | Path = DEFAULT_INDEX_STATUS_PATH) -> Path:
+    validate_index_status(data)
+    data["last_updated"] = now_iso()
+    status_path = Path(path)
+    _atomic_write_json(status_path, data)
+    return status_path
+
+
+def update_document_status(
+    document_id: str,
+    updates: dict[str, Any],
+    path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+) -> dict[str, Any]:
+    data = load_index_status(path)
+    current = data["documents"].get(document_id) or default_document_status(
+        document_id=document_id,
+        filename=str(updates.get("filename") or ""),
+    )
+    current.update(updates)
+    current["document_id"] = document_id
+    current["updated_at"] = now_iso()
+    validate_document_status(current)
+    data["documents"][document_id] = current
+    save_index_status(data, path)
+    return current
+
+
+def record_failure(
+    document_id: str,
+    stage: str,
+    reason: str,
+    path: str | Path = DEFAULT_INDEX_STATUS_PATH,
+) -> dict[str, Any]:
+    return update_document_status(
+        document_id,
+        {
+            "status": STATUS_FAILED,
+            "failure_stage": stage,
+            "failure_reason": reason,
+        },
+        path=path,
+    )
+
+
+def build_operation_summary(
+    operation_id: str,
+    operation_type: str,
+    status: str = "running",
+    **fields: Any,
+) -> dict[str, Any]:
+    if operation_type not in VALID_OPERATION_TYPES:
+        raise ValueError(f"operation_type 不合法: {operation_type!r}")
+    timestamp = now_iso()
+    summary = {
+        "operation_id": operation_id,
+        "operation_type": operation_type,
+        "document_id": None,
+        "filename": None,
+        "status": status,
+        "current_stage": None,
+        "completed_document_count": 0,
+        "failed_document_count": 0,
+        "current_document_chunk_count": 0,
+        "results": {},
+        "old_state": None,
+        "new_state": None,
+        "diff": None,
+        "error_messages": [],
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+    summary.update(fields)
+    return summary
