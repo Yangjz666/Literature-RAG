@@ -86,8 +86,8 @@ timeout 20 .venv/bin/python -m streamlit run ui/streamlit_app.py --server.headle
 是否已合并回开发基线分支：是，合并到 v2-dev
 合并后测试是否通过：是
 合并后测试命令：.venv/bin/python -m pytest tests/test_parse_report.py tests/test_index_status.py tests/test_document_library.py -q；.venv/bin/python -m pytest tests/test_acceptance.py::TestChunker tests/test_v2_router.py tests/test_v2_pipeline.py -q；Streamlit smoke test
-是否已 push：待 push
-未提交文件是否只包含可忽略本地数据：当前仅剩本文件交付状态更新，待提交
+是否已 push：未完成；`git push origin v2-dev` 无输出阻塞，提升权限后 `timeout 60 git push origin v2-dev` 仍超时
+未提交文件是否只包含可忽略本地数据：工作区干净，无未提交文件
 已知风险：Embedding 配置缺失时 chunk 预览/索引操作受限；真实 ChromaDB 端到端需小样本复验
 后续建议：合并后用一篇小 PDF 做文献详情、单篇重建和删除关联记录手工验收
 ```
