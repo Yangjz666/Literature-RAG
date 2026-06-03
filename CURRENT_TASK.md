@@ -20,19 +20,23 @@
 .venv/bin/python -m pytest tests/test_parse_report.py tests/test_index_status.py tests/test_document_library.py -q
 ```
 
-结果：`27 passed in 1.04s`
+功能分支结果：`27 passed in 1.04s`
+
+合并到 `v2-dev` 后结果：`27 passed in 1.14s`
 
 ```bash
 .venv/bin/python -m py_compile app/parse_report.py app/index_status.py app/document_library.py app/ingest.py app/indexer.py ui/streamlit_app.py
 ```
 
-结果：通过。
+功能分支与合并后结果：通过。
 
 ```bash
 .venv/bin/python -m pytest tests/test_acceptance.py::TestChunker tests/test_v2_router.py tests/test_v2_pipeline.py -q
 ```
 
-结果：`23 passed in 0.17s`
+功能分支结果：`23 passed in 0.17s`
+
+合并到 `v2-dev` 后结果：`23 passed in 0.24s`
 
 ```bash
 timeout 20 .venv/bin/python -m streamlit run ui/streamlit_app.py --server.headless true --server.port 8502
@@ -41,6 +45,8 @@ timeout 20 .venv/bin/python -m streamlit run ui/streamlit_app.py --server.headle
 普通沙箱结果：因本地 socket 权限限制失败，`PermissionError: [Errno 1] Operation not permitted`。
 
 提升权限后结果：Streamlit 成功启动，显示 `Local URL: http://localhost:8502`，20 秒超时退出为 smoke test 预期结束。
+
+合并到 `v2-dev` 后再次提升权限 smoke test：Streamlit 成功启动，显示 `Local URL: http://localhost:8502`，20 秒超时退出为预期结束。
 
 ## Git 与基线检查
 
@@ -76,12 +82,12 @@ timeout 20 .venv/bin/python -m streamlit run ui/streamlit_app.py --server.headle
 功能分支测试是否通过：是
 测试命令：.venv/bin/python -m pytest tests/test_parse_report.py tests/test_index_status.py tests/test_document_library.py -q
 手动 smoke test 是否完成：已完成 Streamlit 启动 smoke；未用真实 PDF/Embedding 做手动索引流程
-是否已提交功能分支：待提交
-是否已合并回开发基线分支：待合并
-合并后测试是否通过：待合并后测试
-合并后测试命令：待运行
-是否已 push：未完成
-未提交文件是否只包含可忽略本地数据：待提交前检查
+是否已提交功能分支：是，467fd2f feat: complete library index transparency
+是否已合并回开发基线分支：是，合并到 v2-dev
+合并后测试是否通过：是
+合并后测试命令：.venv/bin/python -m pytest tests/test_parse_report.py tests/test_index_status.py tests/test_document_library.py -q；.venv/bin/python -m pytest tests/test_acceptance.py::TestChunker tests/test_v2_router.py tests/test_v2_pipeline.py -q；Streamlit smoke test
+是否已 push：待 push
+未提交文件是否只包含可忽略本地数据：当前仅剩本文件交付状态更新，待提交
 已知风险：Embedding 配置缺失时 chunk 预览/索引操作受限；真实 ChromaDB 端到端需小样本复验
 后续建议：合并后用一篇小 PDF 做文献详情、单篇重建和删除关联记录手工验收
 ```
