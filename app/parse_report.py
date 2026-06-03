@@ -151,6 +151,43 @@ def load_parse_report(document_id: str, report_dir: str | Path = DEFAULT_PARSE_R
     return report
 
 
+def load_parse_report_detail(
+    document_id: str,
+    report_dir: str | Path = DEFAULT_PARSE_REPORT_DIR,
+) -> dict[str, Any]:
+    report = load_parse_report(document_id, report_dir)
+    if report is None:
+        return {
+            "document_id": document_id,
+            "exists": False,
+            "summary": {},
+            "raw": None,
+            "error_message": "未找到 parse_report",
+        }
+    return {
+        "document_id": document_id,
+        "exists": True,
+        "summary": {
+            "filename": report.get("filename"),
+            "paper_title": report.get("paper_title"),
+            "doi": report.get("doi"),
+            "parse_status": report.get("parse_status"),
+            "pages_total": report.get("pages_total"),
+            "pages_parsed": report.get("pages_parsed"),
+            "text_length": report.get("text_length"),
+            "chunks_created": report.get("chunks_created"),
+            "tables_found": report.get("tables_found"),
+            "figure_captions_found": report.get("figure_captions_found"),
+            "ocr_used": report.get("ocr_used"),
+            "error_message": report.get("error_message"),
+            "warnings": report.get("warnings", []),
+            "updated_at": report.get("updated_at"),
+        },
+        "raw": report,
+        "error_message": report.get("error_message"),
+    }
+
+
 def list_parse_reports(report_dir: str | Path = DEFAULT_PARSE_REPORT_DIR) -> dict[str, dict[str, Any]]:
     path = Path(report_dir)
     if not path.exists():
@@ -166,6 +203,17 @@ def list_parse_reports(report_dir: str | Path = DEFAULT_PARSE_REPORT_DIR) -> dic
             continue
         reports[str(report["document_id"])] = report
     return reports
+
+
+def delete_parse_report(document_id: str, report_dir: str | Path = DEFAULT_PARSE_REPORT_DIR) -> dict[str, Any]:
+    path = _report_path(report_dir, document_id)
+    if not path.exists():
+        return {"target": "parse_report", "status": "skipped", "reason": "parse_report 不存在"}
+    try:
+        path.unlink()
+    except OSError as e:
+        return {"target": "parse_report", "status": "failed", "reason": str(e)}
+    return {"target": "parse_report", "status": "success", "reason": f"已删除 {path.name}"}
 
 
 def diff_parse_reports(old: dict[str, Any] | None, new: dict[str, Any] | None) -> dict[str, dict[str, Any]]:

@@ -85,18 +85,18 @@
 
 ### Tests for User Story 2
 
-- [ ] T028 [P] [US2] Add tests for parse_report detail loading and failed-report display data in `tests/test_parse_report.py`
-- [ ] T029 [P] [US2] Add tests for document detail item including chunk preview and index failure fields in `tests/test_document_library.py`
+- [X] T028 [P] [US2] Add tests for parse_report detail loading and failed-report display data in `tests/test_parse_report.py`
+- [X] T029 [P] [US2] Add tests for document detail item including chunk preview and index failure fields in `tests/test_document_library.py`
 
 ### Implementation for User Story 2
 
-- [ ] T030 [US2] Implement parse_report detail lookup by `document_id` in `app/parse_report.py`
-- [ ] T031 [US2] Implement chunk preview lookup from ChromaDB and parent store metadata for one document in `app/indexer.py`
-- [ ] T032 [US2] Implement document detail aggregation including parse_report, chunk previews, index_status, and errors in `app/document_library.py`
-- [ ] T033 [US2] Add document selection and detail panel rendering in `ui/streamlit_app.py`
-- [ ] T034 [US2] Add parse_report JSON summary and raw JSON viewer in `ui/streamlit_app.py`
-- [ ] T035 [US2] Add chunk preview table with `chunk_id`, page, section, SI flag, and text preview in `ui/streamlit_app.py`
-- [ ] T036 [US2] Add index stage, failure stage, failure reason, and latest operation display in `ui/streamlit_app.py`
+- [X] T030 [US2] Implement parse_report detail lookup by `document_id` in `app/parse_report.py`
+- [X] T031 [US2] Implement chunk preview lookup from ChromaDB and parent store metadata for one document in `app/indexer.py`
+- [X] T032 [US2] Implement document detail aggregation including parse_report, chunk previews, index_status, and errors in `app/document_library.py`
+- [X] T033 [US2] Add document selection and detail panel rendering in `ui/streamlit_app.py`
+- [X] T034 [US2] Add parse_report JSON summary and raw JSON viewer in `ui/streamlit_app.py`
+- [X] T035 [US2] Add chunk preview table with `chunk_id`, page, section, SI flag, and text preview in `ui/streamlit_app.py`
+- [X] T036 [US2] Add index stage, failure stage, failure reason, and latest operation display in `ui/streamlit_app.py`
 
 **Checkpoint**: US2 details work independently after selecting a document from the US1 list.
 
@@ -110,22 +110,22 @@
 
 ### Tests for User Story 3
 
-- [ ] T037 [P] [US3] Add tests for single-document reparse preserving old parse_report on failure in `tests/test_parse_report.py`
-- [ ] T038 [P] [US3] Add tests for single-document rebuild updating only target document status in `tests/test_index_status.py`
-- [ ] T039 [P] [US3] Add tests for full rebuild operation summary counts in `tests/test_index_status.py`
+- [X] T037 [P] [US3] Add tests for single-document reparse preserving old parse_report on failure in `tests/test_parse_report.py`
+- [X] T038 [P] [US3] Add tests for single-document rebuild updating only target document status in `tests/test_index_status.py`
+- [X] T039 [P] [US3] Add tests for full rebuild operation summary counts in `tests/test_index_status.py`
 
 ### Implementation for User Story 3
 
-- [ ] T040 [US3] Add single-file parse wrapper that returns pages, metadata, warnings, and failed reports without changing `load_folder()` behavior in `app/ingest.py`
-- [ ] T041 [US3] Write parse_report after successful, partial, or failed PDF parsing in `app/ingest.py`
-- [ ] T042 [US3] Implement `reparse_document` operation with old-report preservation and diff summary in `app/document_library.py`
-- [ ] T043 [US3] Add single-document indexing helper that chunks only the target paper in `app/indexer.py`
-- [ ] T044 [US3] Implement single-document index rebuild using existing `chunk_paper()` and `LiteratureIndex.add_chunks()` in `app/indexer.py`
-- [ ] T045 [US3] Update index_status stages during single-document reparse and rebuild operations in `app/index_status.py`
-- [ ] T046 [US3] Implement full rebuild progress summary without changing existing index storage format in `app/indexer.py`
-- [ ] T047 [US3] Add reparse, rebuild current index, and full rebuild controls with user-visible progress in `ui/streamlit_app.py`
-- [ ] T048 [US3] Ensure single-document reparse and single-document rebuild controls are separate actions in `ui/streamlit_app.py`
-- [ ] T049 [US3] Ensure single-document operations never call full-library rebuild paths in `app/document_library.py`
+- [X] T040 [US3] Add single-file parse wrapper that returns pages, metadata, warnings, and failed reports without changing `load_folder()` behavior in `app/ingest.py`
+- [X] T041 [US3] Write parse_report after successful, partial, or failed PDF parsing in `app/ingest.py`
+- [X] T042 [US3] Implement `reparse_document` operation with old-report preservation and diff summary in `app/document_library.py`
+- [X] T043 [US3] Add single-document indexing helper that chunks only the target paper in `app/indexer.py`
+- [X] T044 [US3] Implement single-document index rebuild using existing `chunk_paper()` and `LiteratureIndex.add_chunks()` in `app/indexer.py`
+- [X] T045 [US3] Update index_status stages during single-document reparse and rebuild operations in `app/index_status.py`
+- [X] T046 [US3] Implement full rebuild progress summary without changing existing index storage format in `app/indexer.py`
+- [X] T047 [US3] Add reparse, rebuild current index, and full rebuild controls with user-visible progress in `ui/streamlit_app.py`
+- [X] T048 [US3] Ensure single-document reparse and single-document rebuild controls are separate actions in `ui/streamlit_app.py`
+- [X] T049 [US3] Ensure single-document operations never call full-library rebuild paths in `app/document_library.py`
 
 **Checkpoint**: US3 operations are independently testable and keep single-document boundaries.
 
@@ -139,20 +139,20 @@
 
 ### Tests for User Story 4
 
-- [ ] T050 [P] [US4] Add tests for delete operation result shape and partial failure reporting in `tests/test_document_library.py`
-- [ ] T051 [P] [US4] Add tests for index_status cleanup and delete operation summary in `tests/test_index_status.py`
-- [ ] T052 [P] [US4] Add tests for manifest and parse_report cleanup behavior in `tests/test_document_library.py`
+- [X] T050 [P] [US4] Add tests for delete operation result shape and partial failure reporting in `tests/test_document_library.py`
+- [X] T051 [P] [US4] Add tests for index_status cleanup and delete operation summary in `tests/test_index_status.py`
+- [X] T052 [P] [US4] Add tests for manifest and parse_report cleanup behavior in `tests/test_document_library.py`
 
 ### Implementation for User Story 4
 
-- [ ] T053 [US4] Implement parse_report delete helper that removes only `data/parse_reports/{document_id}.json` in `app/parse_report.py`
-- [ ] T054 [US4] Implement manifest entry removal or invalidation by `document_id` and filename in `app/indexer.py`
-- [ ] T055 [US4] Implement ChromaDB vector record deletion by `document_id` with filename fallback in `app/indexer.py`
-- [ ] T056 [US4] Implement BM25 rebuild after target-document deletion in `app/indexer.py`
-- [ ] T057 [US4] Implement parent store cleanup by `document_id` with filename fallback in `app/indexer.py`
-- [ ] T058 [US4] Implement `delete_document_records` orchestration with per-item success, failed, or skipped results in `app/document_library.py`
-- [ ] T059 [US4] Add delete confirmation, SI relationship impact notice, and per-item result table in `ui/streamlit_app.py`
-- [ ] T060 [US4] Ensure delete operation does not delete original PDF files by default in `app/document_library.py`
+- [X] T053 [US4] Implement parse_report delete helper that removes only `data/parse_reports/{document_id}.json` in `app/parse_report.py`
+- [X] T054 [US4] Implement manifest entry removal or invalidation by `document_id` and filename in `app/indexer.py`
+- [X] T055 [US4] Implement ChromaDB vector record deletion by `document_id` with filename fallback in `app/indexer.py`
+- [X] T056 [US4] Implement BM25 rebuild after target-document deletion in `app/indexer.py`
+- [X] T057 [US4] Implement parent store cleanup by `document_id` with filename fallback in `app/indexer.py`
+- [X] T058 [US4] Implement `delete_document_records` orchestration with per-item success, failed, or skipped results in `app/document_library.py`
+- [X] T059 [US4] Add delete confirmation, SI relationship impact notice, and per-item result table in `ui/streamlit_app.py`
+- [X] T060 [US4] Ensure delete operation does not delete original PDF files by default in `app/document_library.py`
 
 **Checkpoint**: US4 deletion is safe, visible, and independently testable.
 
@@ -162,14 +162,14 @@
 
 **Purpose**: 补齐文档、回归、验收和安全检查。
 
-- [ ] T061 [P] Add user-facing documentation for page usage, fields, statuses, rebuild actions, delete behavior, and known limitations in `docs/document_library.md`
-- [ ] T062 Update README with a short link or section for document library management in `README.md`
-- [ ] T063 Update V3 planning documentation to reflect implemented scope and exclusions in `CO2RR_RAG_Agent_PRD_V3.md`
-- [ ] T064 Run parse_report, document_library, and index_status tests and record results in `CURRENT_TASK.md`
-- [ ] T065 Run existing V1/V2 regression or smoke tests for structured extraction and literature synthesis entry points and record results in `CURRENT_TASK.md`
-- [ ] T066 Verify no complete Debug Trace, citation verification, FastAPI, Docker, database, or V1/V2 rewrite tasks were introduced in `specs/001-library-index-transparency/tasks.md`
-- [ ] T067 Verify no original PDFs, `data/chroma_db`, `data/index_manifest.json`, PRD, TDD, DEV_PLAN, or TASKS files are deleted without documented confirmation in `CURRENT_TASK.md`
-- [ ] T068 Summarize changed files, tests, risks, and remaining follow-up scope in `CURRENT_TASK.md`
+- [X] T061 [P] Add user-facing documentation for page usage, fields, statuses, rebuild actions, delete behavior, and known limitations in `docs/document_library.md`
+- [X] T062 Update README with a short link or section for document library management in `README.md`
+- [X] T063 Update V3 planning documentation to reflect implemented scope and exclusions in `CO2RR_RAG_Agent_PRD_V3.md`
+- [X] T064 Run parse_report, document_library, and index_status tests and record results in `CURRENT_TASK.md`
+- [X] T065 Run existing V1/V2 regression or smoke tests for structured extraction and literature synthesis entry points and record results in `CURRENT_TASK.md`
+- [X] T066 Verify no complete Debug Trace, citation verification, FastAPI, Docker, database, or V1/V2 rewrite tasks were introduced in `specs/001-library-index-transparency/tasks.md`
+- [X] T067 Verify no original PDFs, `data/chroma_db`, `data/index_manifest.json`, PRD, TDD, DEV_PLAN, or TASKS files are deleted without documented confirmation in `CURRENT_TASK.md`
+- [X] T068 Summarize changed files, tests, risks, and remaining follow-up scope in `CURRENT_TASK.md`
 
 ---
 
