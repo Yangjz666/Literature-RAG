@@ -4,38 +4,43 @@
 
 - Feature 名称：文献库管理与索引透明化
 - Feature 目录：`specs/001-library-index-transparency/`
-- 当前分支：`feature/001-library-index-transparency-us4`
-- 当前阶段：Phase 6 / US4 删除文献及关联记录
-- 当前完成范围：T001-T060
-- 本轮完成任务：T050-T060
-- 剩余任务：Polish T061-T068
+- 当前分支：`feature/001-library-index-transparency-polish`
+- 当前阶段：Phase 7 / Polish
+- 当前完成范围：T001-T068
+- 本轮完成任务：T061-T068
+- Feature 状态：T001-T068 已完成，测试通过，等待用户手动提交
 - 本轮限制：不执行 git commit，不执行 merge，不执行 git push，由用户手动提交、合并和 push
 
-## 本次完成内容
+## Feature 001 已完成能力
 
-- 实现删除文献关联记录的逐项摘要增强：
-  - `manifest`
-  - `parse_report`
-  - `chunks`
-  - `vector_index`
-  - `keyword_index`
-  - `parent_store`
-  - `index_status`
-- 删除操作默认不删除原始 PDF 文件。
-- 删除操作失败时按项返回 `success` / `failed` / `skipped` 和 `reason`，不会因为单项失败导致整个流程崩溃。
-- 删除后保存 delete operation summary。
-- 删除后文献库状态会回落为本地 PDF 的未解析/未索引状态，旧 `document_id`、manifest、parse_report 和 index_status 记录被清理。
-- UI 删除区继续要求输入文件名确认，并新增主文献 / Supporting Information 关联影响提示。
-- 新增索引层删除测试，覆盖按 `document_id` 删除 ChromaDB 记录、BM25 重建和 parent store 清理。
+- 文献库列表：聚合本地 PDF/SI、manifest、parse_report 和 index_status。
+- 单篇文献详情：展示 parse_report 摘要、原始 JSON、index_status、failure_stage、failure_reason、latest operation 和 chunk preview。
+- 单篇重新解析：只处理当前文献，失败时保留旧 parse_report。
+- 单篇重建索引：只重建当前文献索引，不触发全库重建。
+- 全量重建索引：用户明确点击后执行，显示进度和摘要。
+- 删除文献关联记录：逐项清理 manifest、parse_report、chunks、ChromaDB、BM25、parent store 和 index_status。
+- 删除保护：删除关联记录默认不会删除原始 PDF。
+- 文档收尾：README、用户文档、V3 PRD、tasks、PROGRESS 和 CURRENT_TASK 已同步。
+
+## 本轮完成内容
+
+- T061：更新 `docs/document_library.md`，补齐页面用途、字段、状态、单篇重新解析、单篇重建索引、全量重建索引、删除行为和限制。
+- T062：更新 `README.md`，增加 Feature 001 能力、运行、测试和限制说明。
+- T063：更新 `CO2RR_RAG_Agent_PRD_V3.md`，同步 Feature 001 已实现范围和排除范围。
+- T064：运行 Feature 001 相关 pytest 并记录结果。
+- T065：运行完整 pytest 和 Streamlit 启动 smoke test，覆盖 V1/V2 入口的回归风险。
+- T066：确认本 Feature 未新增完整 Debug Trace、citation verification、FastAPI、Docker、数据库、联网下载或 V1/V2 主流程重写。
+- T067：检查不应提交内容，确认本轮普通 `git status` 未出现 `.env`、`data/`、`.venv`、缓存、本地索引或本地 PDF 待提交。
+- T068：汇总修改文件、测试、风险和后续建议。
 
 ## 修改文件
 
-- `app/document_library.py`
-- `ui/streamlit_app.py`
-- `tests/test_document_library.py`
-- `tests/test_indexer_delete.py`
+- `README.md`
+- `docs/document_library.md`
+- `CO2RR_RAG_Agent_PRD_V3.md`
 - `CURRENT_TASK.md`
 - `specs/001-library-index-transparency/PROGRESS.md`
+- `specs/001-library-index-transparency/tasks.md`
 
 ## 已完成任务
 
@@ -45,14 +50,12 @@
 - Phase 4：US2 单篇文献详情页，T028-T036
 - Phase 5：US3 重新解析与重建索引，T037-T049
 - Phase 6：US4 删除文献及关联记录，T050-T060
+- Phase 7：Polish，T061-T068
 
 ## 未完成任务
 
-- Polish T061-T068：
-  - 用户文档和 README 同步；
-  - V3 规划文档同步；
-  - 最终回归和安全检查；
-  - 完整交付总结。
+- Feature 001 范围内无未完成 task。
+- 浏览器内真实点击验证仍建议由用户手动执行。
 
 ## 测试记录
 
@@ -66,51 +69,61 @@
 .venv/bin/python -m pytest tests/test_parse_report.py tests/test_document_library.py tests/test_index_status.py tests/test_indexer_delete.py -q
 ```
 
-结果：32 passed in 0.69s
+结果：32 passed in 0.83s
 
 ```bash
 .venv/bin/python -m pytest
 ```
 
-结果：149 passed in 1.01s
+结果：149 passed in 1.19s
 
 ```bash
 timeout 20 .venv/bin/python -m streamlit run ui/streamlit_app.py --server.headless true --server.port 8501
 ```
 
-结果：Streamlit 启动成功，显示 Local URL `http://localhost:8501`，20 秒 timeout 后正常停止；未进行浏览器内手动点击验证。
+结果：Streamlit 成功启动并显示 Local URL `http://localhost:8501`，20 秒 timeout 后停止；未做浏览器内手动点击验证。
 
-## Streamlit Smoke Test
+## Streamlit 手动验证建议
 
-- 自动启动 smoke：已完成。
-- 浏览器内手动点击删除按钮：未完成，需要用户后续验证。
-- 建议手动检查：
-  - 文献库管理页面能打开；
-  - 单篇详情页删除区显示“不会删除原始 PDF”的提示；
-  - 删除前必须输入文件名确认；
-  - 删除后逐项显示 manifest、parse_report、chunks、vector_index、keyword_index、parent_store、index_status 的结果；
-  - 部分失败时能看到失败项和原因；
-  - 删除后的文献不再通过旧索引参与检索。
+自动 smoke test 只能确认应用可启动。用户仍需手动打开页面检查：
+
+- 文献查询入口；
+- 文献库管理页面；
+- 单篇文献详情页；
+- 单篇重新解析按钮；
+- 单篇重建索引按钮；
+- 全量重建索引入口；
+- 删除文献关联记录入口；
+- 删除操作不会删除原始 PDF 的提示和确认机制。
+
+## 安全与范围检查
+
+- 本轮未修改 `.env`。
+- 本轮未修改 `data/`。
+- 本轮未修改 `.venv/`、缓存、本地索引或本地 PDF。
+- 本轮未新增 Debug Trace、citation verification、FastAPI、Docker、数据库、联网下载、多用户系统或 V1/V2 主流程重写。
+- 安全检查发现仓库存在被 ignore 的本地 `.env`、`.venv`、缓存、`data/chroma_db` 和本地 PDF 产物；它们未进入普通 `git status` 待提交区，本轮不会建议提交。
+- `git ls-files` 显示历史上已有 `data/test_literature/README.md` 和一个 Zone.Identifier 文件被跟踪；本轮未修改它们，建议后续单独评估是否移出 Git 跟踪。
+
+## 已知风险
+
+- 真实索引操作依赖 Embedding API 配置，自动测试不触碰真实 API Key。
+- 真实 ChromaDB、BM25 和 parent store 清理建议先在小型测试文献夹中手动验证。
+- 删除关联记录默认保留原始 PDF；如果本地 PDF 仍在目录中，重新扫描时会以未解析/未索引状态重新出现在列表中。
+- Streamlit 自动启动 smoke 不等于浏览器内真实点击验收。
+
+## 下一步建议
+
+1. 用户手动检查 `git diff`。
+2. 用户手动提交当前 Polish 改动。
+3. 用户手动合并回 `v2-dev` 并 push。
+4. 使用小型测试文献夹做浏览器内手动验收。
 
 ## Git 状态
 
 - 是否执行 git commit：否，本轮按用户要求不执行
 - 是否执行 merge：否，本轮按用户要求不执行
 - 是否执行 git push：否，本轮按用户要求不执行
-
-## 已知风险
-
-- 自动测试使用 fake collection / 临时文件，不会触碰真实 ChromaDB、真实 PDF 库或真实 API Key。
-- 真实删除操作仍建议先在小型测试文献夹验证。
-- 如果 ChromaDB、BM25 或 parent store 某项清理失败，系统会报告 partial，但用户需要根据失败原因决定是否重试或手动修复。
-- 原始 PDF 默认保留，因此删除关联记录后如果继续扫描本地文件夹，该 PDF 会以未解析/未索引状态重新出现在文献库列表中。
-
-## 下一步建议
-
-1. 用户手动检查 `git diff`。
-2. 用户手动提交当前 US4 改动。
-3. 用户手动合并回 `v2-dev` 并 push。
-4. 后续进入 Polish T061-T068。
 
 ## 强制更新规则
 

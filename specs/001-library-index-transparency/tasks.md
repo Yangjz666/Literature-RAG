@@ -162,6 +162,8 @@
 
 **Purpose**: 补齐文档、回归、验收和安全检查。
 
+**Completion Note**: T061-T068 在 `feature/001-library-index-transparency-polish` 完成。已同步 README、`docs/document_library.md`、V3 PRD、`CURRENT_TASK.md` 和 `PROGRESS.md`；已运行相关 pytest、完整 pytest 和 Streamlit 启动 smoke test。浏览器内真实点击验证仍作为手动验收建议记录，不虚标为自动完成。
+
 - [X] T061 [P] Add user-facing documentation for page usage, fields, statuses, rebuild actions, delete behavior, and known limitations in `docs/document_library.md`
 - [X] T062 Update README with a short link or section for document library management in `README.md`
 - [X] T063 Update V3 planning documentation to reflect implemented scope and exclusions in `CO2RR_RAG_Agent_PRD_V3.md`
