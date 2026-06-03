@@ -25,3 +25,8 @@ data/chroma_backup_*/
 data/papers/
 data/pdf_excluded/
 data/eval/
+# Local test literature and generated indexes
+data/test_literature/*.pdf
+data/test_literature/**/*.pdf
+data/test_indexes/
+data/test_chroma/
