@@ -108,3 +108,19 @@
 - 是否执行 git commit：否，按用户要求不执行。
 - 是否执行 merge：否，按用户要求不执行。
 - 是否执行 git push：否，按用户要求不执行。
+
+## 2026-06-04 后续路线图整理
+
+- 本轮任务类型：规划文档整理。
+- 新增路线图文档：`specs/所有task.md`。
+- 同步更新：`CURRENT_TASK.md`。
+- Feature 001 状态：已完成 T001-T068，已合并到 `v2-dev` 并 push 到 `origin/v2-dev`；后续只做维护和 bug 修复。
+- 后续 5 个核心 Feature 已整理：
+  - Feature 001：文献库管理与索引透明化，已完成；
+  - Feature 002：检索调试 Debug Trace，待开发，下一步优先做；
+  - Feature 003：结果追溯与 Citation Evidence，待开发；
+  - Feature 004：评测、日志、Token、耗时和成本统计，待开发；
+  - Feature 005：部署与项目展示闭环，待开发，最后做。
+- 下一步建议：新建 `feature/002-retrieval-debug-trace`，并按 Speckit / AGENTS.md 独立执行 Feature 002。
+- 本轮未运行自动化测试；只新增/更新规划文档，未修改 `app/`、`ui/` 或 `tests/` 业务代码。
+- 本轮未执行 git commit、merge 或 push。
