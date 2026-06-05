@@ -50,7 +50,7 @@
 
 # Phase 1：准备与文档同步
 
-## T001 创建 Feature 进度文档
+## [X] T001 创建 Feature 进度文档
 
 - 文件：`specs/002-retrieval-debug-trace/PROGRESS.md`
 - 内容要求：
@@ -60,7 +60,7 @@
   - 记录当前待完成 task：T001-T050；
   - 记录风险：不重写主流程、Debug Trace 不影响正常查询。
 
-## T002 更新 CURRENT_TASK.md
+## [X] T002 更新 CURRENT_TASK.md
 
 - 文件：`CURRENT_TASK.md`
 - 内容要求：
@@ -70,7 +70,7 @@
   - 下一步：执行 analyze；
   - 说明 Feature 001 已完成，当前开始 Feature 002。
 
-## T003 检查 AGENTS.md 与 Speckit 当前路径
+## [X] T003 检查 AGENTS.md 与 Speckit 当前路径
 
 - 文件：`AGENTS.md`
 - 要求：
@@ -84,7 +84,7 @@
 
 # Phase 2：测试骨架与 Debug Trace 数据结构
 
-## T004 新增 Debug Trace 测试文件
+## [X] T004 新增 Debug Trace 测试文件
 
 - 文件：`tests/test_debug_trace.py`
 - 任务：
@@ -94,7 +94,7 @@
   - 不依赖真实 Embedding；
   - 不依赖真实 PDF 文献库。
 
-## T005 测试 create_debug_trace 基础结构
+## [X] T005 测试 create_debug_trace 基础结构
 
 - 文件：`tests/test_debug_trace.py`
 - 测试要求：
@@ -108,7 +108,7 @@
   - 包含 `error`；
   - 包含 `failed_stage`。
 
-## T006 新增 app/debug_trace.py
+## [X] T006 新增 app/debug_trace.py
 
 - 文件：`app/debug_trace.py`
 - 任务：
@@ -118,7 +118,7 @@
   - 不引入数据库；
   - 不落盘保存 trace。
 
-## T007 实现 create_debug_trace()
+## [X] T007 实现 create_debug_trace()
 
 - 文件：`app/debug_trace.py`
 - 函数建议：
@@ -136,7 +136,7 @@ create_debug_trace(user_query: str, query_mode: str | None = None) -> dict
   * 初始化 `warning` 为空列表；
   * 初始化 `error` 和 `failed_stage` 为 `None`。
 
-## T008 测试 TraceChunk 标准化
+## [X] T008 测试 TraceChunk 标准化
 
 * 文件：`tests/test_debug_trace.py`
 * 测试要求：
@@ -147,7 +147,7 @@ create_debug_trace(user_query: str, query_mode: str | None = None) -> dict
   * `text_preview` 被截断；
   * `source_stage` 正确写入。
 
-## T009 实现 normalize_trace_chunk()
+## [X] T009 实现 normalize_trace_chunk()
 
 * 文件：`app/debug_trace.py`
 * 函数建议：
@@ -168,7 +168,7 @@ normalize_trace_chunk(raw_chunk: Any, source_stage: str) -> dict
   * `source_stage`
   * `text_preview`
 
-## T010 实现 normalize_trace_chunks()
+## [X] T010 实现 normalize_trace_chunks()
 
 * 文件：`app/debug_trace.py`
 * 函数建议：
@@ -183,7 +183,7 @@ normalize_trace_chunks(raw_chunks: list[Any], source_stage: str) -> list[dict]
   * 单个 chunk 异常不导致整体失败；
   * 异常 chunk 可跳过或转为 warning。
 
-## T011 测试 not_available 阶段标记
+## [X] T011 测试 not_available 阶段标记
 
 * 文件：`tests/test_debug_trace.py`
 * 测试要求：
@@ -192,7 +192,7 @@ normalize_trace_chunks(raw_chunks: list[Any], source_stage: str) -> list[dict]
   * 可记录 reason；
   * 不影响其他阶段数据。
 
-## T012 实现 mark_stage_not_available()
+## [X] T012 实现 mark_stage_not_available()
 
 * 文件：`app/debug_trace.py`
 * 函数建议：
@@ -207,7 +207,7 @@ mark_stage_not_available(trace: dict, stage: str, reason: str | None = None) -> 
   * reason 写入 warning；
   * 不抛出致命异常。
 
-## T013 测试 failed_stage 与 error 记录
+## [X] T013 测试 failed_stage 与 error 记录
 
 * 文件：`tests/test_debug_trace.py`
 * 测试要求：
@@ -218,7 +218,7 @@ mark_stage_not_available(trace: dict, stage: str, reason: str | None = None) -> 
   * 不直接暴露完整 traceback；
   * trace 仍然 JSON 可序列化。
 
-## T014 实现 record_error()
+## [X] T014 实现 record_error()
 
 * 文件：`app/debug_trace.py`
 * 函数建议：
@@ -234,7 +234,7 @@ record_error(trace: dict, failed_stage: str, error: Exception | str) -> None
   * 写入用户可读 `error`；
   * 不把 API Key、环境变量、完整敏感路径写入 error。
 
-## T015 实现 to_json_safe()
+## [X] T015 实现 to_json_safe()
 
 * 文件：`app/debug_trace.py`
 * 函数建议：
@@ -253,7 +253,7 @@ to_json_safe(trace: dict) -> dict
 
 # Phase 3：Citation / Evidence 基础映射
 
-## T016 测试 citation matched / unmatched
+## [X] T016 测试 citation matched / unmatched
 
 * 文件：`tests/test_debug_trace.py`
 * 测试要求：
@@ -263,7 +263,7 @@ to_json_safe(trace: dict) -> dict
   * 匹配失败标记 `unmatched`；
   * 缺失 citation 时显示空列表或 `not_available`。
 
-## T017 实现 normalize_trace_citation()
+## [X] T017 实现 normalize_trace_citation()
 
 * 文件：`app/debug_trace.py`
 * 函数建议：
@@ -284,7 +284,7 @@ normalize_trace_citation(raw_citation: Any, final_context_chunks: list[dict]) ->
   * `matched_final_context`
   * `match_status`
 
-## T018 实现 record_citations()
+## [X] T018 实现 record_citations()
 
 * 文件：`app/debug_trace.py`
 * 函数建议：

@@ -6,31 +6,27 @@
 - Feature 名称：检索调试 Debug Trace
 - 开发基线分支：`V3-DEV`
 - 当前分支：`feature/002-retrieval-debug-trace`
-- 当前阶段：tasks 修正与 analyze 前置检查
-- 当前任务类型：修正 Feature 002 `tasks.md` 并进入 `/analyze`
-- 本轮修改文档：`specs/002-retrieval-debug-trace/tasks.md`、`CURRENT_TASK.md`、`specs/002-retrieval-debug-trace/PROGRESS.md`
-- 本轮限制：只修改 Speckit 文档并执行 analyze；不进入 implement；不修改 `app/`、`ui/`、`tests/` 业务代码；不执行 git commit，不 merge，不 push
+- 当前阶段：implement 第一批任务
+- 当前任务类型：实现 T001-T018，完成 Debug Trace 核心数据结构、chunk 标准化和 citation 基础映射
+- 本轮修改文件：`app/debug_trace.py`、`tests/test_debug_trace.py`、`specs/002-retrieval-debug-trace/tasks.md`、`CURRENT_TASK.md`、`specs/002-retrieval-debug-trace/PROGRESS.md`
+- 本轮限制：只实现 T001-T018；不接入 RAG 查询流程；不修改 `ui/streamlit_app.py`；不实现 T019-T050；不做 citation verification、claim-level verification、FastAPI、Docker、数据库、多用户、联网下载、GraphRAG 或主流程重写
 
 ## 本轮完成内容
 
-- 根据 `speckit-plan-review` 审核报告修订 `specs/002-retrieval-debug-trace/plan.md`。
-- 修正 Feature 002 任务文档：将 `specs/002-retrieval-debug-trace/task.md` 规范为标准 `specs/002-retrieval-debug-trace/tasks.md`。
-- 移除 tasks 文档外层 Markdown 代码围栏，使文件以正式标题 `# Tasks: Feature 002 检索调试 Debug Trace` 开头。
-- 修正任务范围描述为 `T001-T050`。
-- 在 Streamlit smoke test 和最终验收中补充结构化抽取入口、文献综合入口、当前 trace 展示和连续查询不混淆检查项。
-- 更新 `AGENTS.md` SPECKIT 块，将当前 plan 路径指向 `specs/002-retrieval-debug-trace/plan.md`。
-- 明确 Debug Trace 对 `hybrid_retrieve()`、`hybrid_retrieve_candidates()`、`run_synthesis_pipeline()` 等现有调用方的兼容接入方式。
-- 修正 plan 中误导性的测试文件名，改为现有 V2 测试文件或明确新增测试文件。
-- 补充 V2 synthesis 路径、连续两次查询不混淆 trace、citation 只做 chunk 映射和 unmatched 标记、`data/debug_traces/` 后续落盘安全规则、AI coding-agent constraints。
-- 使用 `speckit-specify` 生成 Feature 002 需求规格。
-- 确认功能属于 V3，开发基线为 `V3-DEV`。
-- 开发前确认 `git status --short` 为空。
-- 在 `V3-DEV` 执行同步，结果为 `Already up to date.`。
-- 执行 SpecKit before_specify git feature hook，创建并切换到 `feature/002-retrieval-debug-trace`。
-- 创建当前 Feature 目录：`specs/002-retrieval-debug-trace/`。
-- 创建规格质量 checklist：`specs/002-retrieval-debug-trace/checklists/requirements.md`。
-- 更新 `.specify/feature.json` 指向当前 Feature 目录。
-- 建立本 Feature 进度文档：`specs/002-retrieval-debug-trace/PROGRESS.md`。
+- 完成 T001-T003：同步 Feature 进度文档、更新 CURRENT_TASK、检查 AGENTS.md 的 Feature 002 plan 路径。
+- 完成 T004-T015：新增 `tests/test_debug_trace.py` 和 `app/debug_trace.py`，实现并测试：
+  - `create_debug_trace()`
+  - `normalize_trace_chunk()`
+  - `normalize_trace_chunks()`
+  - `mark_stage_not_available()`
+  - `record_error()`
+  - `to_json_safe()`
+- 完成 T016-T018：实现并测试 citation/evidence 到 `final_context_chunks` 的 `chunk_id` 基础映射：
+  - `normalize_trace_citation()`
+  - `record_citations()`
+  - matched / unmatched 标记
+- 已将 `specs/002-retrieval-debug-trace/tasks.md` 中 T001-T018 标记为 `[X]`。
+- 本阶段未修改现有 RAG 主流程，未修改 Streamlit UI，未引入真实 LLM、Embedding API 或 PDF 文献库依赖。
 
 ## Feature 002 目标
 
@@ -46,63 +42,52 @@
 
 ## 当前未完成任务
 
-- `/speckit-clarify`：未执行，本 Feature 当前未发现必须阻塞 plan 的需求冲突。
-- `/speckit-plan`：已生成并根据审核报告完成小修。
-- `/speckit-tasks`：已生成任务清单，并按 tasks-review / analyze 前置检查意见修正为标准 `tasks.md`。
-- `/speckit-analyze`：准备执行，本轮任务要求修正后进入 analyze。
-- `/speckit-implement`：未开始。
-- 相关 pytest：未运行，本轮只修改 Speckit 文档。
-- Streamlit smoke test：未运行，本轮未修改应用代码。
-- 功能分支提交：未完成。
-- 合并回 `V3-DEV`：未完成。
-- 合并后测试：未完成。
-- push：未完成。
+- T019-T028：接入现有 RAG 查询流程，记录 rewritten query、BM25/vector/RRF/reranker/final context/final answer/elapsed_ms。
+- T029-T036：Streamlit Debug Trace 面板和 Raw JSON 展示。
+- T037-T040：错误处理降级和 `session_state` 当前 trace。
+- T041-T044：用户文档和进度文档后续更新。
+- T045-T050：最终语法检查、相关测试、完整 pytest、Streamlit smoke test、Git 安全检查和最终验收记录。
+- Streamlit smoke test：未执行，本轮未修改 UI。
 
 ## 修改文件
 
-- `AGENTS.md`
-- `.specify/feature.json`
-- `CURRENT_TASK.md`
-- `specs/002-retrieval-debug-trace/plan.md`
-- `specs/002-retrieval-debug-trace/spec.md`
-- `specs/002-retrieval-debug-trace/checklists/requirements.md`
-- `specs/002-retrieval-debug-trace/PROGRESS.md`
+- `app/debug_trace.py`
+- `tests/test_debug_trace.py`
 - `specs/002-retrieval-debug-trace/tasks.md`
+- `CURRENT_TASK.md`
+- `specs/002-retrieval-debug-trace/PROGRESS.md`
 
 ## 本轮测试
 
 | 日期 | 分支 | 命令 | 结果 | 说明 |
 | --- | --- | --- | --- | --- |
-| 2026-06-05 | `V3-DEV` | `git status --short` | 通过，无输出 | 开发前工作区干净 |
-| 2026-06-05 | `V3-DEV` | `timeout 60 git pull` | 通过，`Already up to date.` | 基线分支已同步 |
-| 2026-06-05 | `feature/002-retrieval-debug-trace` | `/speckit-specify` 文档生成与规格质量检查 | 通过 | 本轮只生成规格文档 |
-| 2026-06-05 | `feature/002-retrieval-debug-trace` | `speckit-plan-review` 审核建议文档修订 | 通过 | 只修改文档，未编码、未提交 |
-| 2026-06-05 | `feature/002-retrieval-debug-trace` | `0-speckit-tasks-review` 与 analyze 前置检查 | 通过修正前置问题 | 已修正 `task.md` 文件名、代码围栏、T001-T050 范围和 smoke test 验收项 |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | `bash .specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` | 通过 | `tasks.md` 被 SpecKit 识别 |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | checklist 统计 | 通过 | `requirements.md` 16/16 完成 |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | `.venv/bin/python -m py_compile app/debug_trace.py` | 通过 | 语法检查通过 |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | `.venv/bin/python -m pytest tests/test_debug_trace.py -q` | 通过 | 11 passed |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | `.venv/bin/python -m pytest` | 通过 | 160 passed |
 
 ## 风险与注意事项
 
-- 当前已完成 specify、plan 和 tasks；已按 review 结论修正 tasks 文档，尚未 implement。
-- analyze 通过前不得进入 implement。
-- 后续 implement 阶段必须把结构化抽取路径、V2 synthesis 路径、失败路径、连续查询不混淆和旧调用方兼容性落实到代码与测试。
-- 后续实现不得重写 V1/V2/V3 主流程，不得改变 ChromaDB、BM25 或 parent store 的现有存储格式。
-- Debug Trace 本阶段只做基础追溯，不做完整 citation verification 或 claim-level citation verification。
-- 后续测试不得依赖真实 LLM、真实 Embedding API 或真实 PDF 文献库。
+- 当前只完成 Debug Trace 核心 helper 和单元测试，尚未接入 RAG 查询流程。
+- `citations_used` 只做 citation/evidence 与 final context chunk 的 `chunk_id` 映射，不做真假判断、claim-level verification 或完整 citation verification。
+- 后续接入阶段必须保持旧调用方兼容，不得改变 ChromaDB、BM25、parent store 的现有存储格式。
+- 后续 UI 阶段必须保证连续两次查询不混淆上一轮 trace。
 
 ## Git 操作状态
 
 - 开发前 git status 是否干净：是。
 - 是否从正确基线分支创建：是，从 `V3-DEV` 创建。
 - 当前功能分支：`feature/002-retrieval-debug-trace`。
-- 是否执行 git commit：否。
-- 是否执行 merge：否。
-- 是否执行 push：否。
+- 是否执行 git commit：待执行。
+- 是否执行 merge：待执行。
+- 是否执行 push：待执行。
 
 ## 下一步建议
 
-下一步建议进入：
+按用户要求执行标准收尾流程：
 
-```text
-/speckit-analyze
-```
-
-进入 implement 前，必须先确认 `/speckit-analyze` 无阻塞问题，且 `git status` 只包含本 Feature 相关文档改动。
+1. 提交当前功能分支。
+2. 合并 `feature/002-retrieval-debug-trace` 到 `V3-DEV`。
+3. 合并后重新运行相关测试。
+4. 测试通过后 push `V3-DEV`。
