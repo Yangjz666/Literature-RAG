@@ -551,7 +551,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
 
 # Phase 6：错误处理与降级
 
-## T037 测试 Debug Trace 不影响正常回答
+## [X] T037 测试 Debug Trace 不影响正常回答
 
 * 文件：`tests/test_debug_trace.py`
 * 测试要求：
@@ -561,7 +561,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 不影响 answer 输出；
   * 不引入额外 LLM / embedding / PDF 解析调用，避免明显增加普通查询延迟。
 
-## T038 实现 trace 安全包装
+## [X] T038 实现 trace 安全包装
 
 * 文件：
 
@@ -573,7 +573,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * trace 失败只写 warning；
   * 不中断主流程。
 
-## T039 测试连续两次查询 trace 不混淆
+## [X] T039 测试连续两次查询 trace 不混淆
 
 * 文件：`tests/test_debug_trace.py`
 * 测试要求：
@@ -583,7 +583,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 不混入上一轮 final_context_chunks；
   * 不混入上一轮 citations_used。
 
-## T040 处理 session_state 中的当前 trace
+## [X] T040 处理 session_state 中的当前 trace
 
 * 文件：`ui/streamlit_app.py`
 * 任务：
@@ -597,7 +597,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
 
 # Phase 7：文档与进度同步
 
-## T041 新增 docs/retrieval_debug.md
+## [X] T041 新增 docs/retrieval_debug.md
 
 * 文件：`docs/retrieval_debug.md`
 * 内容：
@@ -610,7 +610,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 本功能不是 citation verification；
   * 后续可升级方向。
 
-## T042 更新 README.md
+## [X] T042 更新 README.md
 
 * 文件：`README.md`
 * 内容：
@@ -620,7 +620,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 添加注意事项；
   * 不写过长技术细节。
 
-## T043 更新 CURRENT_TASK.md
+## [X] T043 更新 CURRENT_TASK.md
 
 * 文件：`CURRENT_TASK.md`
 * 内容：
@@ -631,7 +631,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 记录风险；
   * 记录下一步建议。
 
-## T044 更新 PROGRESS.md
+## [X] T044 更新 PROGRESS.md
 
 * 文件：`specs/002-retrieval-debug-trace/PROGRESS.md`
 * 内容：
@@ -649,7 +649,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
 
 # Phase 8：最终测试与验收
 
-## T045 运行语法检查
+## [X] T045 运行语法检查
 
 * 命令：
 
@@ -659,7 +659,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
 
 如本 Feature 修改其他 app 文件，也加入对应文件。
 
-## T046 运行 Debug Trace 相关测试
+## [X] T046 运行 Debug Trace 相关测试
 
 * 命令：
 
@@ -667,7 +667,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
 .venv/bin/python -m pytest tests/test_debug_trace.py -q
 ```
 
-## T047 运行完整 pytest
+## [X] T047 运行完整 pytest
 
 * 命令：
 
@@ -681,7 +681,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 如果失败，记录失败原因；
   * 不得声称 Feature 完成。
 
-## T048 Streamlit smoke test
+## [X] T048 Streamlit smoke test
 
 * 命令：
 
@@ -705,7 +705,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 连续两次查询不混淆上一轮 trace；
   * 没有红色 traceback。
 
-## T049 Git 安全检查
+## [X] T049 Git 安全检查
 
 * 检查项：
 
@@ -719,7 +719,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 本地 PDF 文献库未提交；
   * 如存在 `data/debug_traces/`，必须被忽略。
 
-## T050 最终验收记录
+## [X] T050 最终验收记录
 
 * 文件：
 

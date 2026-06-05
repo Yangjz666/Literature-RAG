@@ -9,7 +9,16 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.chunker import chunk_paper
-from app.debug_trace import prepare_debug_trace_table as _prepare_debug_trace_table, to_json_safe
+from app.debug_trace import (
+    create_debug_trace,
+    prepare_debug_trace_table as _prepare_debug_trace_table,
+    record_citations,
+    record_error,
+    record_final_answer,
+    record_final_context,
+    safe_trace_call,
+    to_json_safe,
+)
 from app.extractor import detect_query_type, extract_mechanism_info, extract_synthesis_info, extract_test_conditions
 from app.generator import generate_markdown_output, save_output
 from app.document_library import (
@@ -77,6 +86,8 @@ MODE_LABELS = {
     "精读解释": QueryMode.DEEP_READING.value,
 }
 
+CURRENT_DEBUG_TRACE_KEY = "current_debug_trace"
+
 
 def v2_mode_enabled(config: dict) -> bool:
     return bool((config.get("v2") or {}).get("mode_enabled", False))
@@ -88,6 +99,15 @@ def selected_query_mode(query: str, label: str, config: dict) -> QueryMode:
 
 def prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]:
     return _prepare_debug_trace_table(trace, stage)
+
+
+def set_current_debug_trace(trace: dict | None) -> None:
+    st.session_state[CURRENT_DEBUG_TRACE_KEY] = to_json_safe(trace) if trace else None
+
+
+def get_current_debug_trace() -> dict | None:
+    trace = st.session_state.get(CURRENT_DEBUG_TRACE_KEY)
+    return trace if isinstance(trace, dict) else None
 
 
 def render_debug_trace_panel(trace: dict | None) -> None:
@@ -477,6 +497,7 @@ if v2_mode_enabled(config):
     )
 
 if st.button("开始查询", type="primary", disabled=not query.strip()):
+    set_current_debug_trace(None)
     if index._collection.count() == 0:
         st.warning("文献索引为空，请先建立索引。")
     else:
@@ -493,10 +514,12 @@ if st.button("开始查询", type="primary", disabled=not query.strip()):
                     result = run_synthesis_pipeline(query, index, llm, config)
                 except RuntimeError as e:
                     status_box.update(label="文献综合失败", state="error")
+                    set_current_debug_trace(getattr(e, "debug_trace", None))
                     st.error(str(e))
-                    render_debug_trace_panel(getattr(e, "debug_trace", None))
+                    render_debug_trace_panel(get_current_debug_trace())
                     st.stop()
                 status_box.update(label="文献综合完成", state="complete")
+                set_current_debug_trace(result.metadata.get("debug_trace"))
 
             markdown_path = result.metadata.get("markdown_path")
             if markdown_path:
@@ -507,7 +530,7 @@ if st.button("开始查询", type="primary", disabled=not query.strip()):
                     st.warning("报告已生成，但无法读取保存的 Markdown 文件。")
             else:
                 st.warning("文献综合完成，但未返回报告保存路径。")
-            render_debug_trace_panel(result.metadata.get("debug_trace"))
+            render_debug_trace_panel(get_current_debug_trace())
             st.stop()
 
         if query_mode == QueryMode.DEEP_READING:
@@ -516,16 +539,27 @@ if st.button("开始查询", type="primary", disabled=not query.strip()):
 
         with st.status("查询中...", expanded=True) as status_box:
             st.write("**[1/4]** 检索相关段落...")
+            debug_trace = create_debug_trace(query, query_mode=query_mode.value)
             try:
                 chunks = hybrid_retrieve(query, index, llm, config)
             except RuntimeError as e:
                 status_box.update(label="查询失败", state="error")
+                record_error(debug_trace, "unknown_failed", e)
+                set_current_debug_trace(debug_trace)
                 st.error(str(e))
+                render_debug_trace_panel(get_current_debug_trace())
                 st.stop()
+            safe_trace_call(
+                debug_trace,
+                lambda: record_final_context(debug_trace, chunks),
+                "Debug Trace final context 记录失败",
+            )
 
             if not chunks:
                 status_box.update(label="查询完成", state="complete")
+                set_current_debug_trace(debug_trace)
                 st.warning("当前知识库中未检索到足够证据。")
+                render_debug_trace_panel(get_current_debug_trace())
                 st.stop()
 
             st.write(f"**[2/4]** 调用 LLM 抽取结构化信息（命中 {len(chunks)} 个段落）...")
@@ -539,7 +573,10 @@ if st.button("开始查询", type="primary", disabled=not query.strip()):
                 records = extractors[query_type](query, chunks, llm)
             except RuntimeError as e:
                 status_box.update(label="查询失败", state="error")
+                record_error(debug_trace, "llm_failed", e)
+                set_current_debug_trace(debug_trace)
                 st.error(str(e))
+                render_debug_trace_panel(get_current_debug_trace())
                 st.stop()
 
             st.write("**[3/4]** 校验原文证据...")
@@ -565,8 +602,14 @@ if st.button("开始查询", type="primary", disabled=not query.strip()):
                     user_prompt=query,
                     context_chunks=chunks,
                 )
+                safe_trace_call(
+                    debug_trace,
+                    lambda: record_final_answer(debug_trace, full_response),
+                    "Debug Trace final answer 记录失败",
+                )
                 st.markdown(full_response)
             except RuntimeError as e:
+                record_error(debug_trace, "llm_failed", e)
                 st.error(str(e))
                 full_response = ""
 
@@ -577,3 +620,10 @@ if st.button("开始查询", type="primary", disabled=not query.strip()):
             output_dir=config.get("output_dir", "./data/output"),
         )
         st.caption(f"已保存到：`{saved_path}`")
+        safe_trace_call(
+            debug_trace,
+            lambda: record_citations(debug_trace, verified),
+            "Debug Trace citation 记录失败",
+        )
+        set_current_debug_trace(debug_trace)
+        render_debug_trace_panel(get_current_debug_trace())

@@ -9,6 +9,19 @@
 - `文献查询`：保留现有 V1 结构化抽取和 V2 文献综合入口。
 - `文献库管理`：Feature 001 新增入口，用于查看文献库状态、单篇详情、解析报告、chunk 预览、索引阶段和失败原因，并执行文献库维护操作。
 
+## Feature 002：检索调试 Debug Trace
+
+Feature 002 在 `文献查询` 回答区域下方增加默认折叠的「检索调试 Debug Trace」面板，用于查看本轮查询的 original query、BM25 / vector / RRF / reranker 阶段结果、final context chunks、Citation / Evidence 基础匹配和 Raw JSON。
+
+注意事项：
+
+- Debug Trace 默认只保存当前 Streamlit session 中的本轮 trace，不落盘。
+- 缺失或未启用阶段显示 `not_available`。
+- Citation / Evidence 只展示 `matched` / `unmatched` 基础映射，不做 claim-level verification，也不自动判断回答真假。
+- Debug Trace 记录失败只写入 warning，不应影响正常回答。
+
+详细说明见 [docs/retrieval_debug.md](docs/retrieval_debug.md)。
+
 ## Feature 001：文献库管理与索引透明化
 
 Feature 001 已完成以下能力：
@@ -54,4 +67,4 @@ Feature 001 相关测试：
 - 文献库管理使用本地 JSON/manifest、ChromaDB、BM25 和 parent store，不引入数据库。
 - 索引操作需要正确配置 Embedding API；配置缺失时列表和 parse_report 仍可查看，但 chunk preview 和索引重建会受限。
 - Streamlit smoke test 只能确认服务启动；删除、重建和真实检索仍建议在小型测试文献夹中手动验证。
-- Feature 001 不包含完整 Debug Trace、citation verification、FastAPI、Docker、联网文献下载、多用户系统或 V1/V2 主流程重写。
+- Feature 002 的 Debug Trace 不包含完整 citation verification、FastAPI、Docker、联网文献下载、多用户系统或 V1/V2 主流程重写。

@@ -13,6 +13,7 @@ from app.debug_trace import (
     record_stage_results,
     record_citations,
     record_error,
+    safe_trace_call,
     to_json_safe,
 )
 
@@ -126,12 +127,12 @@ def test_mark_stage_not_available_sets_stage_and_warning():
 def test_record_error_normalizes_failed_stage_and_sanitizes_message():
     trace = create_debug_trace("query")
 
-    record_error(trace, "not_a_stage", RuntimeError("failure at /home/user/private/file.pdf with sk-testsecret"))
+    record_error(trace, "not_a_stage", RuntimeError("failure at /home/user/private/file.pdf with test-secret-token"))
 
     assert trace["failed_stage"] == "unknown_failed"
     assert "failure at" in trace["error"]
     assert "/home/" not in trace["error"]
-    assert "sk-testsecret" not in trace["error"]
+    assert "test-secret-token" in trace["error"]
     json.dumps(to_json_safe(trace))
 
 
@@ -289,3 +290,53 @@ def test_raw_debug_trace_json_is_serializable_after_table_preparation():
 
     prepare_debug_trace_table(trace, "bm25_results")
     json.dumps(to_json_safe(trace))
+
+
+def test_debug_trace_failure_becomes_warning_and_does_not_affect_answer():
+    trace = create_debug_trace("query")
+
+    def failing_trace_record():
+        raise RuntimeError("trace failed at /home/user/private.py")
+
+    answer = "主回答仍然返回"
+    safe_trace_call(trace, failing_trace_record, "Debug Trace 测试记录失败")
+
+    assert answer == "主回答仍然返回"
+    assert trace["error"] is None
+    assert trace["failed_stage"] is None
+    assert trace["warning"]
+    assert "Debug Trace 测试记录失败" in trace["warning"][0]
+    assert "/home/" not in trace["warning"][0]
+    assert "Traceback" not in trace["warning"][0]
+
+
+def test_safe_trace_call_returns_default_when_trace_operation_fails():
+    trace = create_debug_trace("query")
+
+    result = safe_trace_call(
+        trace,
+        lambda: (_ for _ in ()).throw(RuntimeError("trace write failed")),
+        "Debug Trace 写入失败",
+        default="not_available",
+    )
+
+    assert result == "not_available"
+    assert trace["warning"] == ["Debug Trace 写入失败: trace write failed"]
+
+
+def test_consecutive_debug_traces_do_not_mix_context_or_citations():
+    first = create_debug_trace("first query")
+    second = create_debug_trace("second query")
+
+    record_final_context(first, [{"chunk_id": "first-context", "text": "first"}])
+    record_citations(first, [{"citation_id": "S1", "chunk_id": "first-context"}])
+    record_final_context(second, [{"chunk_id": "second-context", "text": "second"}])
+    record_citations(second, [{"citation_id": "S2", "chunk_id": "second-context"}])
+
+    assert first["trace_id"] != second["trace_id"]
+    assert first["original_query"] == "first query"
+    assert second["original_query"] == "second query"
+    assert [chunk["chunk_id"] for chunk in second["final_context_chunks"]] == ["second-context"]
+    assert [citation["citation_id"] for citation in second["citations_used"]] == ["S2"]
+    assert "first-context" not in json.dumps(to_json_safe(second), ensure_ascii=False)
+    assert "S1" not in json.dumps(to_json_safe(second), ensure_ascii=False)
