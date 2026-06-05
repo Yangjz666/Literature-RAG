@@ -20,6 +20,28 @@ TRACE_STAGE_FIELDS = (
     "reranker_results",
 )
 
+TRACE_CHUNK_TABLE_FIELDS = (
+    "document_id",
+    "filename",
+    "page",
+    "section",
+    "chunk_id",
+    "parent_chunk_id",
+    "score",
+    "source_stage",
+    "text_preview",
+)
+
+TRACE_CITATION_TABLE_FIELDS = (
+    "citation_id",
+    "filename",
+    "page",
+    "section",
+    "chunk_id",
+    "evidence_text_preview",
+    "match_status",
+)
+
 VALID_FAILED_STAGES = {
     "query_rewrite_failed",
     "bm25_failed",
@@ -139,6 +161,31 @@ def record_elapsed_ms(trace: dict | None, started_at: float) -> None:
         trace["elapsed_ms"] = max(0, int((perf_counter() - started_at) * 1000))
     except Exception as exc:
         _warnings(trace).append(f"debug trace elapsed time recording failed: {exc}")
+
+
+def prepare_debug_trace_table(trace: dict | None, stage: str) -> list[dict]:
+    """Prepare trace stage rows for Streamlit dataframe rendering."""
+    if not isinstance(trace, dict):
+        return [{"status": NOT_AVAILABLE}]
+
+    rows = trace.get(stage, NOT_AVAILABLE)
+    if rows in (None, NOT_AVAILABLE) or rows == []:
+        return [{"status": NOT_AVAILABLE}]
+    if not isinstance(rows, list):
+        return [{"status": str(rows)}]
+
+    fields = (
+        TRACE_CITATION_TABLE_FIELDS
+        if stage == "citations_used"
+        else TRACE_CHUNK_TABLE_FIELDS
+    )
+    table_rows: list[dict] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            table_rows.append({"status": str(row)})
+            continue
+        table_rows.append({field: row.get(field) for field in fields})
+    return table_rows or [{"status": NOT_AVAILABLE}]
 
 
 def mark_stage_not_available(trace: dict, stage: str, reason: str | None = None) -> None:

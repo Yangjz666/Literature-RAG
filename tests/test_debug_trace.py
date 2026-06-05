@@ -7,6 +7,7 @@ from app.debug_trace import (
     normalize_trace_chunk,
     normalize_trace_chunks,
     normalize_trace_citation,
+    prepare_debug_trace_table,
     record_final_answer,
     record_final_context,
     record_stage_results,
@@ -208,3 +209,83 @@ def test_record_citations_handles_missing_citations_as_empty_list():
     record_citations(trace, None)
 
     assert trace["citations_used"] == []
+
+
+def test_prepare_debug_trace_table_handles_not_available_stage():
+    trace = create_debug_trace("query")
+
+    rows = prepare_debug_trace_table(trace, "bm25_results")
+
+    assert rows == [{"status": "not_available"}]
+
+
+def test_prepare_debug_trace_table_returns_chunk_fields():
+    trace = create_debug_trace("query")
+    trace["final_context_chunks"] = [
+        {
+            "document_id": "doc-1",
+            "filename": "paper.pdf",
+            "page": 1,
+            "section": "Results",
+            "chunk_id": "c1",
+            "parent_chunk_id": "p1",
+            "score": 0.5,
+            "source_stage": "final_context",
+            "text_preview": "bounded preview",
+            "text": "should not be displayed",
+        }
+    ]
+
+    rows = prepare_debug_trace_table(trace, "final_context_chunks")
+
+    assert rows == [
+        {
+            "document_id": "doc-1",
+            "filename": "paper.pdf",
+            "page": 1,
+            "section": "Results",
+            "chunk_id": "c1",
+            "parent_chunk_id": "p1",
+            "score": 0.5,
+            "source_stage": "final_context",
+            "text_preview": "bounded preview",
+        }
+    ]
+
+
+def test_prepare_debug_trace_table_returns_citation_fields():
+    trace = create_debug_trace("query")
+    trace["citations_used"] = [
+        {
+            "citation_id": "S1",
+            "filename": "paper.pdf",
+            "page": 1,
+            "section": "Results",
+            "chunk_id": "c1",
+            "evidence_text_preview": "evidence preview",
+            "match_status": "matched",
+            "matched_final_context": True,
+        }
+    ]
+
+    rows = prepare_debug_trace_table(trace, "citations_used")
+
+    assert rows == [
+        {
+            "citation_id": "S1",
+            "filename": "paper.pdf",
+            "page": 1,
+            "section": "Results",
+            "chunk_id": "c1",
+            "evidence_text_preview": "evidence preview",
+            "match_status": "matched",
+        }
+    ]
+
+
+def test_raw_debug_trace_json_is_serializable_after_table_preparation():
+    trace = create_debug_trace("query")
+    trace["raw_object"] = datetime(2026, 6, 5, 12, 0, 0)
+
+    prepare_debug_trace_table(trace, "bm25_results")
+    json.dumps(to_json_safe(trace))

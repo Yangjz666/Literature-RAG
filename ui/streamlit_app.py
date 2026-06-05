@@ -9,6 +9,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.chunker import chunk_paper
+from app.debug_trace import prepare_debug_trace_table as _prepare_debug_trace_table, to_json_safe
 from app.extractor import detect_query_type, extract_mechanism_info, extract_synthesis_info, extract_test_conditions
 from app.generator import generate_markdown_output, save_output
 from app.document_library import (
@@ -83,6 +84,74 @@ def v2_mode_enabled(config: dict) -> bool:
 
 def selected_query_mode(query: str, label: str, config: dict) -> QueryMode:
     return detect_query_mode(query, explicit_mode=MODE_LABELS[label], config=config)
+
+
+def prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]:
+    return _prepare_debug_trace_table(trace, stage)
+
+
+def render_debug_trace_panel(trace: dict | None) -> None:
+    with st.expander("检索调试 Debug Trace", expanded=False):
+        if not trace:
+            st.info("暂无 Debug Trace。")
+            return
+
+        safe_trace = to_json_safe(trace)
+        st.write("**Query 信息**")
+        st.dataframe(
+            [
+                {
+                    "trace_id": safe_trace.get("trace_id"),
+                    "created_at": safe_trace.get("created_at"),
+                    "user_query": safe_trace.get("user_query"),
+                    "original_query": safe_trace.get("original_query"),
+                    "rewritten_query": safe_trace.get("rewritten_query"),
+                    "query_mode": safe_trace.get("query_mode"),
+                    "elapsed_ms": safe_trace.get("elapsed_ms"),
+                }
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        stage_labels = [
+            ("BM25 results", "bm25_results"),
+            ("Vector results", "vector_results"),
+            ("RRF results", "rrf_results"),
+            ("Reranker results", "reranker_results"),
+            ("Final context chunks", "final_context_chunks"),
+        ]
+        for label, stage in stage_labels:
+            st.write(f"**{label}**")
+            st.dataframe(
+                prepare_debug_trace_table(safe_trace, stage),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        st.write("**Citation / Evidence**")
+        st.caption("本阶段只展示 matched / unmatched 基础映射，不做真假判断或 claim-level citation verification。")
+        st.dataframe(
+            prepare_debug_trace_table(safe_trace, "citations_used"),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        warnings = safe_trace.get("warning") or []
+        if warnings:
+            st.write("**warning**")
+            for warning in warnings:
+                st.warning(str(warning))
+        if safe_trace.get("failed_stage"):
+            st.write("**failed_stage**")
+            st.code(str(safe_trace["failed_stage"]))
+        if safe_trace.get("error"):
+            st.write("**error**")
+            st.error(str(safe_trace["error"]))
+
+        show_raw = st.checkbox("显示 Raw JSON", value=False, key=f"debug_trace_raw_{safe_trace.get('trace_id', 'unknown')}")
+        if show_raw:
+            st.json(safe_trace)
 
 
 def render_document_library_page(folder_path: str, config: dict) -> None:
@@ -425,6 +494,7 @@ if st.button("开始查询", type="primary", disabled=not query.strip()):
                 except RuntimeError as e:
                     status_box.update(label="文献综合失败", state="error")
                     st.error(str(e))
+                    render_debug_trace_panel(getattr(e, "debug_trace", None))
                     st.stop()
                 status_box.update(label="文献综合完成", state="complete")
 
@@ -437,6 +507,7 @@ if st.button("开始查询", type="primary", disabled=not query.strip()):
                     st.warning("报告已生成，但无法读取保存的 Markdown 文件。")
             else:
                 st.warning("文献综合完成，但未返回报告保存路径。")
+            render_debug_trace_panel(result.metadata.get("debug_trace"))
             st.stop()
 
         if query_mode == QueryMode.DEEP_READING:

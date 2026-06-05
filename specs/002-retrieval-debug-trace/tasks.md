@@ -442,7 +442,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
 
 # Phase 5：Streamlit Debug Trace 面板
 
-## T029 新增 UI helper：准备阶段表格数据
+## [X] T029 新增 UI helper：准备阶段表格数据
 
 * 文件：`ui/streamlit_app.py`
 * 建议函数：
@@ -457,7 +457,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 空阶段返回 not_available；
   * 字段适合 `st.dataframe` 展示。
 
-## T030 测试 UI helper 数据转换
+## [X] T030 测试 UI helper 数据转换
 
 * 文件：可新增或复用：
 
@@ -469,7 +469,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * citation 表格字段完整；
   * raw JSON 可序列化。
 
-## T031 在回答区域增加 Debug Trace 折叠面板
+## [X] T031 在回答区域增加 Debug Trace 折叠面板
 
 * 文件：`ui/streamlit_app.py`
 * 任务：
@@ -481,7 +481,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 不影响普通用户阅读回答；
   * 查询失败时仍可展示已有 trace。
 
-## T032 展示 Query 信息
+## [X] T032 展示 Query 信息
 
 * 文件：`ui/streamlit_app.py`
 * 展示：
@@ -494,7 +494,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * `query_mode`
   * `elapsed_ms`
 
-## T033 展示检索阶段结果
+## [X] T033 展示检索阶段结果
 
 * 文件：`ui/streamlit_app.py`
 * 展示阶段：
@@ -510,7 +510,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 缺失阶段显示 `not_available`；
   * 不直接展示过长全文。
 
-## T034 展示 Citation / Evidence
+## [X] T034 展示 Citation / Evidence
 
 * 文件：`ui/streamlit_app.py`
 * 展示：
@@ -527,7 +527,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * matched / unmatched 清晰；
   * 明确本阶段不做真假判断。
 
-## T035 展示 warning / error / failed_stage
+## [X] T035 展示 warning / error / failed_stage
 
 * 文件：`ui/streamlit_app.py`
 * 任务：
@@ -537,7 +537,7 @@ prepare_debug_trace_table(trace: dict, stage: str) -> list[dict]
   * 如果有 failed_stage，展示失败阶段；
   * 不直接展示完整 traceback。
 
-## T036 展示 Raw JSON
+## [X] T036 展示 Raw JSON
 
 * 文件：`ui/streamlit_app.py`
 * 任务：
