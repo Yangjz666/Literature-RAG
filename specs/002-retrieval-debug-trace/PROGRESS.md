@@ -6,11 +6,11 @@
 - 名称：检索调试 Debug Trace
 - 开发基线分支：`V3-DEV`
 - 当前分支：`feature/002-retrieval-debug-trace`
-- 当前阶段：plan review refinement
-- 当前完成到：已生成 plan，并根据 `speckit-plan-review` 审核建议完成小修
-- 本轮完成任务：修订 plan 文档、同步 AGENTS/CURRENT_TASK/PROGRESS
-- Feature 状态：plan 与 spec 基本一致，建议进入 `/speckit-tasks`
-- 本轮限制：只修改文档，不进入 tasks、analyze 或 implement；不修改业务代码，不执行 git commit，不 merge，不 push
+- 当前阶段：tasks 修正与 analyze 前置检查
+- 当前完成到：已生成并修正 `tasks.md`，准备进入 `/speckit-analyze`
+- 本轮完成任务：修正任务文档文件名、Markdown 格式、任务范围和 smoke test 验收项，同步 CURRENT_TASK/PROGRESS
+- Feature 状态：spec、plan、tasks 已具备 analyze 输入条件，尚未 implement
+- 本轮限制：只修改 Speckit 文档并执行 analyze；不进入 implement；不修改 `app/`、`ui/`、`tests/` 业务代码；不执行 git commit，不 merge，不 push
 
 ## 总体目标
 
@@ -31,13 +31,17 @@
 | specify | 需求规格 | 已完成 | 已生成 `spec.md` 和 `checklists/requirements.md` |
 | clarify | 需求澄清 | 未执行 | 当前未发现阻塞 plan 的需求冲突 |
 | plan | 技术方案 | 已完成小修 | 已根据 Plan 审核报告修订 `plan.md` |
-| tasks | 任务拆解 | 未开始 | 本轮按用户要求不进入 |
-| analyze | 一致性分析 | 未开始 | 本轮按用户要求不进入 |
+| tasks | 任务拆解 | 已完成并修正 | 已将 `task.md` 规范为标准 `tasks.md`，修正格式和验收项 |
+| analyze | 一致性分析 | 准备执行 | 本轮修正后进入 `/speckit-analyze` |
 | implement | 实现 | 未开始 | 本轮按用户要求不进入 |
 
 ## 本轮完成内容
 
 - 根据 `speckit-plan-review` 审核报告修订 `specs/002-retrieval-debug-trace/plan.md`。
+- 修正 Feature 002 任务文档：将 `specs/002-retrieval-debug-trace/task.md` 规范为标准 `specs/002-retrieval-debug-trace/tasks.md`。
+- 移除 tasks 文档外层 Markdown 代码围栏，使文件以正式标题开头。
+- 修正 T001 中错误的任务范围，将 `T001-T040` 改为 `T001-T050`。
+- 在 Streamlit smoke test 和最终验收中补充结构化抽取入口、文献综合入口、当前 trace 展示和连续查询不混淆检查项。
 - 更新 `AGENTS.md` SPECKIT 块，当前 plan 路径已指向 `specs/002-retrieval-debug-trace/plan.md`。
 - 同步 `CURRENT_TASK.md` 和本 `PROGRESS.md` 的阶段状态。
 - 修正 plan 中不准确的测试文件名，改为现有 V2 测试目标或明确新增测试文件。
@@ -65,6 +69,7 @@
 - `specs/002-retrieval-debug-trace/spec.md`
 - `specs/002-retrieval-debug-trace/checklists/requirements.md`
 - `specs/002-retrieval-debug-trace/PROGRESS.md`
+- `specs/002-retrieval-debug-trace/tasks.md`
 
 ## 测试记录
 
@@ -74,6 +79,7 @@
 | 2026-06-05 | `V3-DEV` | `timeout 60 git pull` | 通过，`Already up to date.` | 基线分支已同步 |
 | 2026-06-05 | `feature/002-retrieval-debug-trace` | `/speckit-specify` 文档生成与规格质量检查 | 通过 | 本轮只生成规格文档 |
 | 2026-06-05 | `feature/002-retrieval-debug-trace` | `speckit-plan-review` 审核建议文档修订 | 通过 | 只修改文档，未编码、未提交 |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | `0-speckit-tasks-review` 与 analyze 前置检查 | 通过修正前置问题 | 已修正 `task.md` 文件名、代码围栏、T001-T050 范围和 smoke test 验收项 |
 
 ## Streamlit 手动验证
 
@@ -83,8 +89,8 @@
 
 - `/speckit-clarify`：未执行，当前未发现阻塞 plan 的需求冲突
 - `/speckit-plan`：已生成并完成审核后小修
-- `/speckit-tasks`
-- `/speckit-analyze`
+- `/speckit-tasks`：已生成并修正标准 `tasks.md`
+- `/speckit-analyze`：准备执行
 - `/speckit-implement`
 - 相关 pytest
 - Streamlit smoke test
@@ -92,17 +98,18 @@
 
 ## 风险与注意事项
 
-- 当前只是文档计划阶段，尚未验证现有 RAG 查询链路是否已经暴露所有中间阶段数据。
-- 后续 tasks 阶段需要把可直接记录的阶段、只能显示 `not_available` 的阶段、V2 synthesis 路径和旧调用方兼容性拆成明确任务。
+- 当前已完成 specify、plan 和 tasks 文档，尚未验证现有 RAG 查询链路是否已经暴露所有中间阶段数据。
+- analyze 通过前不得进入 implement。
+- 后续 implement 阶段需要把可直接记录的阶段、只能显示 `not_available` 的阶段、V2 synthesis 路径和旧调用方兼容性落实为代码与测试。
 - 后续实现不得引入数据库，不得重写 V1/V2/V3 主流程，不得改变 ChromaDB、BM25 或 parent store 的现有存储格式。
 - Debug Trace 只做基础追溯，不等同于 claim-level citation verification。
 - 自动测试后续必须使用 mock 或 fixture，不依赖真实 LLM、真实 Embedding API 或真实 PDF 文献库。
 
 ## 下一步计划
 
-1. 进入 `/speckit-tasks`，生成可执行任务清单。
-2. tasks 阶段拆分 Debug Trace 数据结构、兼容接入、结构化抽取路径、V2 synthesis 路径、UI 展示、失败阶段记录、citation 基础匹配、连续查询不混淆、测试和文档同步任务。
-3. tasks 生成后执行 `/speckit-analyze` 做 spec/plan/tasks 一致性检查。
+1. 执行 `/speckit-analyze` 做 spec/plan/tasks 一致性检查。
+2. 如 analyze 发现阻塞问题，先修正 Speckit 文档，不进入 implement。
+3. 如 analyze 通过，再由用户决定是否进入 `/speckit-implement`。
 
 ## Git 状态
 

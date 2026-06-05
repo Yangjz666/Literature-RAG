@@ -6,14 +6,18 @@
 - Feature 名称：检索调试 Debug Trace
 - 开发基线分支：`V3-DEV`
 - 当前分支：`feature/002-retrieval-debug-trace`
-- 当前阶段：plan review refinement
-- 当前任务类型：根据 Plan 审核报告修订 Speckit plan 文档
-- 本轮修改文档：`AGENTS.md`、`specs/002-retrieval-debug-trace/plan.md`、`CURRENT_TASK.md`、`specs/002-retrieval-debug-trace/PROGRESS.md`
-- 本轮限制：只修改文档，不进入 tasks、analyze 或 implement；不修改业务代码，不执行 git commit，不 merge，不 push
+- 当前阶段：tasks 修正与 analyze 前置检查
+- 当前任务类型：修正 Feature 002 `tasks.md` 并进入 `/analyze`
+- 本轮修改文档：`specs/002-retrieval-debug-trace/tasks.md`、`CURRENT_TASK.md`、`specs/002-retrieval-debug-trace/PROGRESS.md`
+- 本轮限制：只修改 Speckit 文档并执行 analyze；不进入 implement；不修改 `app/`、`ui/`、`tests/` 业务代码；不执行 git commit，不 merge，不 push
 
 ## 本轮完成内容
 
 - 根据 `speckit-plan-review` 审核报告修订 `specs/002-retrieval-debug-trace/plan.md`。
+- 修正 Feature 002 任务文档：将 `specs/002-retrieval-debug-trace/task.md` 规范为标准 `specs/002-retrieval-debug-trace/tasks.md`。
+- 移除 tasks 文档外层 Markdown 代码围栏，使文件以正式标题 `# Tasks: Feature 002 检索调试 Debug Trace` 开头。
+- 修正任务范围描述为 `T001-T050`。
+- 在 Streamlit smoke test 和最终验收中补充结构化抽取入口、文献综合入口、当前 trace 展示和连续查询不混淆检查项。
 - 更新 `AGENTS.md` SPECKIT 块，将当前 plan 路径指向 `specs/002-retrieval-debug-trace/plan.md`。
 - 明确 Debug Trace 对 `hybrid_retrieve()`、`hybrid_retrieve_candidates()`、`run_synthesis_pipeline()` 等现有调用方的兼容接入方式。
 - 修正 plan 中误导性的测试文件名，改为现有 V2 测试文件或明确新增测试文件。
@@ -44,8 +48,8 @@
 
 - `/speckit-clarify`：未执行，本 Feature 当前未发现必须阻塞 plan 的需求冲突。
 - `/speckit-plan`：已生成并根据审核报告完成小修。
-- `/speckit-tasks`：未开始。
-- `/speckit-analyze`：未开始。
+- `/speckit-tasks`：已生成任务清单，并按 tasks-review / analyze 前置检查意见修正为标准 `tasks.md`。
+- `/speckit-analyze`：准备执行，本轮任务要求修正后进入 analyze。
 - `/speckit-implement`：未开始。
 - 相关 pytest：未运行，本轮只修改 Speckit 文档。
 - Streamlit smoke test：未运行，本轮未修改应用代码。
@@ -63,6 +67,7 @@
 - `specs/002-retrieval-debug-trace/spec.md`
 - `specs/002-retrieval-debug-trace/checklists/requirements.md`
 - `specs/002-retrieval-debug-trace/PROGRESS.md`
+- `specs/002-retrieval-debug-trace/tasks.md`
 
 ## 本轮测试
 
@@ -72,11 +77,13 @@
 | 2026-06-05 | `V3-DEV` | `timeout 60 git pull` | 通过，`Already up to date.` | 基线分支已同步 |
 | 2026-06-05 | `feature/002-retrieval-debug-trace` | `/speckit-specify` 文档生成与规格质量检查 | 通过 | 本轮只生成规格文档 |
 | 2026-06-05 | `feature/002-retrieval-debug-trace` | `speckit-plan-review` 审核建议文档修订 | 通过 | 只修改文档，未编码、未提交 |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | `0-speckit-tasks-review` 与 analyze 前置检查 | 通过修正前置问题 | 已修正 `task.md` 文件名、代码围栏、T001-T050 范围和 smoke test 验收项 |
 
 ## 风险与注意事项
 
-- 当前已完成需求规格和 plan 小修，尚未进入 tasks。
-- 后续 tasks 阶段必须把结构化抽取路径、V2 synthesis 路径、失败路径、连续查询不混淆和旧调用方兼容性拆成明确任务。
+- 当前已完成 specify、plan 和 tasks；已按 review 结论修正 tasks 文档，尚未 implement。
+- analyze 通过前不得进入 implement。
+- 后续 implement 阶段必须把结构化抽取路径、V2 synthesis 路径、失败路径、连续查询不混淆和旧调用方兼容性落实到代码与测试。
 - 后续实现不得重写 V1/V2/V3 主流程，不得改变 ChromaDB、BM25 或 parent store 的现有存储格式。
 - Debug Trace 本阶段只做基础追溯，不做完整 citation verification 或 claim-level citation verification。
 - 后续测试不得依赖真实 LLM、真实 Embedding API 或真实 PDF 文献库。
@@ -95,7 +102,7 @@
 下一步建议进入：
 
 ```text
-/speckit-tasks
+/speckit-analyze
 ```
 
-进入 tasks 前，建议再次确认 `git status` 只包含本 Feature 相关文档改动。
+进入 implement 前，必须先确认 `/speckit-analyze` 无阻塞问题，且 `git status` 只包含本 Feature 相关文档改动。
