@@ -8,7 +8,7 @@
 - 当前分支：`feature/002-retrieval-debug-trace`
 - 当前阶段：implement 收尾
 - 当前完成到：T001-T050 已完成实现与测试
-- Feature 状态：已完成，等待本轮提交并合并回 `V3-DEV`；本轮不执行 push
+- Feature 状态：已完成；功能分支已提交并合并回 `V3-DEV`；合并后测试通过；本轮不执行 push
 
 ## 总体目标
 
@@ -122,13 +122,13 @@
 - 开发前 git status 是否干净：是。
 - 是否从正确基线分支创建/进入功能分支：是。
 - 功能分支测试是否通过：是。
-- 是否建议提交功能分支：是。
-- 是否建议合并回 `V3-DEV`：是。
+- 是否已提交功能分支：是，commit `500f355 feat: finalize retrieval debug trace workflow`。
+- 是否已合并回 `V3-DEV`：是，merge commit `eb7c475 merge feature/002-retrieval-debug-trace`。
+- 合并后测试是否通过：是。
+- 合并后测试命令：`.venv/bin/python -m py_compile app/debug_trace.py app/retriever.py app/pipeline_v2.py ui/streamlit_app.py`；`.venv/bin/python -m pytest tests/test_debug_trace.py -q`；`.venv/bin/python -m pytest`；`timeout 20 .venv/bin/python -m streamlit run ui/streamlit_app.py`。
 - 是否执行 push：否，本轮按用户要求不执行 push。
 
 ## 下一步计划
 
-1. 在 `feature/002-retrieval-debug-trace` 提交本轮改动，建议提交信息：`feat: finalize retrieval debug trace workflow`。
-2. 合并 `feature/002-retrieval-debug-trace` 到 `V3-DEV`。
-3. 合并后在 `V3-DEV` 重新运行语法检查、Debug Trace 单测、完整 pytest 和 Streamlit smoke test。
-4. 用户手动执行 `git push origin V3-DEV`。
+1. 用户手动完成浏览器内 Streamlit 点击验证。
+2. 用户手动执行 `git push origin V3-DEV`。
