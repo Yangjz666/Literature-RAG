@@ -120,6 +120,31 @@ def normalize_trace_chunks(raw_chunks: list[Any] | None, source_stage: str) -> l
     return normalized
 
 
+def record_warning(trace: dict | None, message: Exception | str) -> None:
+    if not isinstance(trace, dict):
+        return
+    try:
+        _warnings(trace).append(_sanitize_error_message(message))
+    except Exception:
+        return
+
+
+def safe_trace_call(
+    trace: dict | None,
+    operation: Any,
+    warning_message: str = "Debug Trace 记录失败",
+    default: Any = None,
+) -> Any:
+    """Run trace-only work without allowing it to interrupt the main flow."""
+    if not isinstance(trace, dict):
+        return default
+    try:
+        return operation()
+    except Exception as exc:
+        record_warning(trace, f"{warning_message}: {exc}")
+        return default
+
+
 def record_stage_results(
     trace: dict | None,
     stage: str,
@@ -128,39 +153,43 @@ def record_stage_results(
 ) -> None:
     if not isinstance(trace, dict):
         return
-    try:
+
+    def _record() -> None:
         trace[stage] = normalize_trace_chunks(results, source_stage)
-    except Exception as exc:
-        _warnings(trace).append(f"debug trace stage recording failed: {exc}")
+
+    safe_trace_call(trace, _record, f"Debug Trace 阶段记录失败（{stage}）")
 
 
 def record_final_context(trace: dict | None, chunks: list[Any] | None) -> None:
     if not isinstance(trace, dict):
         return
-    try:
+
+    def _record() -> None:
         trace["final_context_chunks"] = normalize_trace_chunks(chunks, "final_context")
-    except Exception as exc:
-        _warnings(trace).append(f"debug trace final context recording failed: {exc}")
+
+    safe_trace_call(trace, _record, "Debug Trace final context 记录失败")
 
 
 def record_final_answer(trace: dict | None, answer: Any) -> None:
     if not isinstance(trace, dict):
         return
-    try:
+
+    def _record() -> None:
         trace["final_answer"] = None if answer is None else str(answer)
-    except Exception as exc:
-        _warnings(trace).append(f"debug trace answer recording failed: {exc}")
+
+    safe_trace_call(trace, _record, "Debug Trace answer 记录失败")
 
 
 def record_elapsed_ms(trace: dict | None, started_at: float) -> None:
     if not isinstance(trace, dict):
         return
-    try:
+
+    def _record() -> None:
         from time import perf_counter
 
         trace["elapsed_ms"] = max(0, int((perf_counter() - started_at) * 1000))
-    except Exception as exc:
-        _warnings(trace).append(f"debug trace elapsed time recording failed: {exc}")
+
+    safe_trace_call(trace, _record, "Debug Trace elapsed time 记录失败")
 
 
 def prepare_debug_trace_table(trace: dict | None, stage: str) -> list[dict]:
@@ -191,9 +220,13 @@ def prepare_debug_trace_table(trace: dict | None, stage: str) -> list[dict]:
 def mark_stage_not_available(trace: dict, stage: str, reason: str | None = None) -> None:
     if not isinstance(trace, dict):
         return
-    trace[stage] = NOT_AVAILABLE
-    if reason:
-        _warnings(trace).append(str(reason))
+
+    def _mark() -> None:
+        trace[stage] = NOT_AVAILABLE
+        if reason:
+            _warnings(trace).append(str(reason))
+
+    safe_trace_call(trace, _mark, f"Debug Trace not_available 标记失败（{stage}）")
 
 
 def record_error(trace: dict, failed_stage: str, error: Exception | str) -> None:
@@ -273,15 +306,19 @@ def normalize_trace_citation(raw_citation: Any, final_context_chunks: list[dict]
 def record_citations(trace: dict, citations: list[Any] | None) -> None:
     if not isinstance(trace, dict):
         return
-    if not citations:
-        trace["citations_used"] = []
-        return
 
-    final_context_chunks = trace.get("final_context_chunks") or []
-    trace["citations_used"] = [
-        normalize_trace_citation(citation, final_context_chunks)
-        for citation in citations
-    ]
+    def _record() -> None:
+        if not citations:
+            trace["citations_used"] = []
+            return
+
+        final_context_chunks = trace.get("final_context_chunks") or []
+        trace["citations_used"] = [
+            normalize_trace_citation(citation, final_context_chunks)
+            for citation in citations
+        ]
+
+    safe_trace_call(trace, _record, "Debug Trace citation 记录失败")
 
 
 def _metadata(value: Any) -> dict:

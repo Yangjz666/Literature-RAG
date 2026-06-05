@@ -14,6 +14,7 @@ from app.debug_trace import (
     record_final_answer,
     record_final_context,
     record_stage_results,
+    safe_trace_call,
     to_json_safe,
 )
 from app.feedback import run_self_feedback
@@ -53,22 +54,38 @@ def run_synthesis_pipeline(
         candidates = hybrid_retrieve_candidates(query, index, llm_client, config, debug_trace=trace)
         try:
             ranked = rerank_candidates(query, candidates, config)
-            record_stage_results(trace, "reranker_results", ranked, "reranker")
+            safe_trace_call(
+                trace,
+                lambda: record_stage_results(trace, "reranker_results", ranked, "reranker"),
+                "Debug Trace reranker 记录失败",
+            )
         except Exception as exc:
             record_error(trace, "reranker_failed", exc)
             raise
 
         try:
             context_text, citations = build_v2_context(query, ranked, config)
-            record_final_context(trace, _chunks_used_for_citations(ranked, citations))
+            safe_trace_call(
+                trace,
+                lambda: record_final_context(trace, _chunks_used_for_citations(ranked, citations)),
+                "Debug Trace final context 记录失败",
+            )
         except Exception as exc:
             record_error(trace, "context_builder_failed", exc)
             raise
 
         try:
             result = synthesize_with_citations(query, context_text, citations, llm_client, config)
-            record_final_answer(trace, result.answer)
-            record_citations(trace, result.citations)
+            safe_trace_call(
+                trace,
+                lambda: record_final_answer(trace, result.answer),
+                "Debug Trace final answer 记录失败",
+            )
+            safe_trace_call(
+                trace,
+                lambda: record_citations(trace, result.citations),
+                "Debug Trace citation 记录失败",
+            )
         except Exception as exc:
             record_error(trace, "llm_failed", exc)
             raise

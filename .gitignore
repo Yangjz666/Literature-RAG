@@ -18,6 +18,7 @@ data/index_manifest.json
 data/index_status.json
 data/parse_reports/
 data/output/
+data/debug_traces/
 data/index_backup_*/
 data/chroma_backup_*/
 
