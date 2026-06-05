@@ -1,120 +1,99 @@
 # CURRENT_TASK.md
 
-## 当前任务：后续功能路线图整理
+## 当前任务：Feature 002 检索调试 Debug Trace
 
-- 当前分支：`v2-dev`
-- 当前任务类型：规划文档整理
-- 本轮新增文档：`specs/所有task.md`
-- 本轮限制：只新增/更新文档，不修改业务代码，不执行 git commit，不 merge，不 push
+- 当前 Feature：`002-retrieval-debug-trace`
+- Feature 名称：检索调试 Debug Trace
+- 开发基线分支：`V3-DEV`
+- 当前分支：`feature/002-retrieval-debug-trace`
+- 当前阶段：specify
+- 当前任务类型：Speckit 需求规格生成
+- 本轮新增文档：`specs/002-retrieval-debug-trace/spec.md`、`specs/002-retrieval-debug-trace/checklists/requirements.md`、`specs/002-retrieval-debug-trace/PROGRESS.md`
+- 本轮限制：只生成规格与进度文档，不进入 clarify、plan、tasks、analyze 或 implement；不修改业务代码，不执行 git commit，不 merge，不 push
 
-## Feature 001 状态
+## 本轮完成内容
 
-Feature 001「文献库管理与索引透明化」已完成：
+- 使用 `speckit-specify` 生成 Feature 002 需求规格。
+- 确认功能属于 V3，开发基线为 `V3-DEV`。
+- 开发前确认 `git status --short` 为空。
+- 在 `V3-DEV` 执行同步，结果为 `Already up to date.`。
+- 执行 SpecKit before_specify git feature hook，创建并切换到 `feature/002-retrieval-debug-trace`。
+- 创建当前 Feature 目录：`specs/002-retrieval-debug-trace/`。
+- 创建规格质量 checklist：`specs/002-retrieval-debug-trace/checklists/requirements.md`。
+- 更新 `.specify/feature.json` 指向当前 Feature 目录。
+- 建立本 Feature 进度文档：`specs/002-retrieval-debug-trace/PROGRESS.md`。
 
-- 文献库列表；
-- 单篇文献详情；
-- parse_report；
-- index_status；
-- chunk preview；
-- 单篇重新解析；
-- 单篇重建索引；
-- 全量重建索引；
-- 删除文献关联记录；
-- 文档、测试、验收收尾。
+## Feature 002 目标
 
-当前状态：
+本 Feature 为 CO2RR Literature RAG Agent V3 增加检索调试 Debug Trace 能力，让每次 RAG 查询的检索链路可观察、可调试、可展示。
 
-- 已完成 T001-T068；
-- 已合并到 `v2-dev`；
-- 已 push 到 `origin/v2-dev`；
-- 后续只做维护和 bug 修复。
+核心目标：
 
-## 后续总需求整理
+- 用户可以看到一次查询中系统检索到了哪些文献片段；
+- 开发者可以看到关键词检索、向量检索、融合排序、重排序和 final context 的中间结果；
+- 用户可以判断最终回答是否基于真实检索上下文；
+- RAG 出错时，可以定位失败发生在哪个阶段；
+- 不重写现有 RAG 主流程，只做旁路记录和 UI 展示。
 
-后续 5 个核心 Feature 已整理到：
+## 当前未完成任务
 
-```text
-specs/所有task.md
-```
+- `/speckit-clarify`：未开始。
+- `/speckit-plan`：未开始。
+- `/speckit-tasks`：未开始。
+- `/speckit-analyze`：未开始。
+- `/speckit-implement`：未开始。
+- 相关 pytest：未运行，本轮只生成规格文档。
+- Streamlit smoke test：未运行，本轮未修改应用代码。
+- 功能分支提交：未完成。
+- 合并回 `V3-DEV`：未完成。
+- 合并后测试：未完成。
+- push：未完成。
 
-包含：
+## 修改文件
 
-1. Feature 001：文献库管理与索引透明化，已完成；
-2. Feature 002：检索调试 Debug Trace，待开发，下一步优先做；
-3. Feature 003：结果追溯与 Citation Evidence，待开发；
-4. Feature 004：评测、日志、Token、耗时和成本统计，待开发；
-5. Feature 005：部署与项目展示闭环，待开发，最后做。
-
-## 下一步建议
-
-建议下一步开始 Feature 002：检索调试 Debug Trace。
-
-建议新建分支：
-
-```bash
-git switch v2-dev
-git pull
-git switch -c feature/002-retrieval-debug-trace
-```
-
-Feature 002 应单独走 Speckit / AGENTS.md 流程：
-
-1. specify；
-2. clarify；
-3. plan；
-4. tasks；
-5. analyze；
-6. implement；
-7. test；
-8. document sync；
-9. 提交、合并、合并后测试、push。
-
-## 范围和安全要求
-
-后续每个 Feature 都应单独开发，不混入无关功能。
-
-继续禁止提交：
-
-- `.env`；
-- API Key；
-- `data/` 运行产物；
-- ChromaDB 本地索引；
-- BM25 / parent store 本地运行产物；
-- 本地 PDF 文献库；
-- `.venv/`；
-- `__pycache__/`；
-- `.pytest_cache/`。
-
-Feature 002 不应引入：
-
-- 完整 citation verification；
-- FastAPI；
-- Docker；
-- 数据库；
-- 联网下载；
-- V1/V2 主流程重写。
-
-## 本轮修改文件
-
-- `specs/所有task.md`
+- `.specify/feature.json`
 - `CURRENT_TASK.md`
+- `specs/002-retrieval-debug-trace/spec.md`
+- `specs/002-retrieval-debug-trace/checklists/requirements.md`
+- `specs/002-retrieval-debug-trace/PROGRESS.md`
 
 ## 本轮测试
 
-未运行自动化测试。本轮只新增/更新规划文档，不修改 `app/`、`ui/` 或 `tests/` 业务代码。
+| 日期 | 分支 | 命令 | 结果 | 说明 |
+| --- | --- | --- | --- | --- |
+| 2026-06-05 | `V3-DEV` | `git status --short` | 通过，无输出 | 开发前工作区干净 |
+| 2026-06-05 | `V3-DEV` | `timeout 60 git pull` | 通过，`Already up to date.` | 基线分支已同步 |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | `/speckit-specify` 文档生成与规格质量检查 | 通过 | 本轮只生成规格文档 |
+
+## 风险与注意事项
+
+- 当前只完成需求规格，尚未进入技术方案设计。
+- 后续 plan 阶段必须确认现有 RAG 链路中哪些阶段可直接记录，哪些阶段只能显示 `not_available`。
+- 后续实现不得重写 V1/V2/V3 主流程，不得改变 ChromaDB、BM25 或 parent store 的现有存储格式。
+- Debug Trace 本阶段只做基础追溯，不做完整 citation verification 或 claim-level citation verification。
+- 后续测试不得依赖真实 LLM、真实 Embedding API 或真实 PDF 文献库。
 
 ## Git 操作状态
 
-- 是否执行 git commit：否
-- 是否执行 merge：否
-- 是否执行 push：否
+- 开发前 git status 是否干净：是。
+- 是否从正确基线分支创建：是，从 `V3-DEV` 创建。
+- 当前功能分支：`feature/002-retrieval-debug-trace`。
+- 是否执行 git commit：否。
+- 是否执行 merge：否。
+- 是否执行 push：否。
 
-## 后续记录规则
+## 下一步建议
 
-每个新 Feature 开始后，都必须维护：
+下一步由用户决定进入：
 
-- `CURRENT_TASK.md`
-- `specs/<feature-name>/PROGRESS.md`
-- 对应 Speckit `spec.md`、`plan.md`、`tasks.md`
+```text
+/speckit-clarify
+```
 
-每次完成一个需求、阶段、User Story 或 task 后，必须记录完成内容、修改文件、测试命令、测试结果、风险、下一步建议以及提交/合并/push 状态。
+或：
+
+```text
+/speckit-plan
+```
+
+进入 plan 阶段后，应同步更新 AGENTS.md 中 SPECKIT 块的当前 plan 路径。
