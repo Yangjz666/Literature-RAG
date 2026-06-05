@@ -321,3 +321,64 @@ def test_pipeline_followup_failure_does_not_crash(monkeypatch, tmp_path):
 
     assert result.feedback_trace[0].followup_error == "followup failed"
     assert Path(result.metadata["markdown_path"]).exists()
+
+
+def test_pipeline_attaches_debug_trace_to_metadata(tmp_path):
+    llm = FakeLLM(json.dumps({"answer": "Answer. [S1]", "claims": []}))
+
+    result = run_synthesis_pipeline(
+        "How were Ag NPs synthesized?",
+        FakeIndex(),
+        llm,
+        {
+            "output_dir": str(tmp_path),
+            "reranker": {"enabled": False},
+            "v2": {"default_mode": "synthesis"},
+        },
+    )
+
+    trace = result.metadata["debug_trace"]
+    assert trace["trace_id"]
+    assert trace["user_query"] == "How were Ag NPs synthesized?"
+    assert trace["original_query"] == "How were Ag NPs synthesized?"
+    assert trace["query_mode"] == "synthesis"
+    assert trace["rewritten_query"] == "not_available"
+    assert trace["bm25_results"][0]["source_stage"] == "bm25"
+    assert trace["vector_results"][0]["source_stage"] == "vector"
+    assert trace["rrf_results"][0]["source_stage"] == "rrf"
+    assert trace["reranker_results"][0]["source_stage"] == "reranker"
+    assert trace["final_context_chunks"][0]["source_stage"] == "final_context"
+    assert trace["citations_used"][0]["match_status"] == "matched"
+    assert trace["final_answer"] == result.answer
+    assert isinstance(trace["elapsed_ms"], int)
+    assert trace["error"] is None
+
+
+def test_pipeline_creates_distinct_debug_trace_per_query(tmp_path):
+    llm = FakeLLM(json.dumps({"answer": "Answer. [S1]", "claims": []}))
+
+    first = run_synthesis_pipeline("query one", FakeIndex(), llm, {"output_dir": str(tmp_path)})
+    second = run_synthesis_pipeline("query two", FakeIndex(), llm, {"output_dir": str(tmp_path)})
+
+    assert first.metadata["debug_trace"]["trace_id"] != second.metadata["debug_trace"]["trace_id"]
+    assert first.metadata["debug_trace"]["original_query"] == "query one"
+    assert second.metadata["debug_trace"]["original_query"] == "query two"
+
+
+def test_pipeline_records_llm_failure_in_debug_trace(monkeypatch, tmp_path):
+    def failing_synthesis(*args, **kwargs):
+        raise RuntimeError("llm failed at /home/user/private.pdf with sk-secret")
+
+    monkeypatch.setattr(pipeline_v2, "synthesize_with_citations", failing_synthesis)
+
+    try:
+        run_synthesis_pipeline("query", FakeIndex(), FakeLLM("{}"), {"output_dir": str(tmp_path)})
+    except RuntimeError as exc:
+        trace = getattr(exc, "debug_trace")
+    else:
+        raise AssertionError("expected RuntimeError")
+
+    assert trace["failed_stage"] == "llm_failed"
+    assert "/home/" not in trace["error"]
+    assert "sk-secret" not in trace["error"]
+    assert isinstance(trace["elapsed_ms"], int)

@@ -7,6 +7,9 @@ from app.debug_trace import (
     normalize_trace_chunk,
     normalize_trace_chunks,
     normalize_trace_citation,
+    record_final_answer,
+    record_final_context,
+    record_stage_results,
     record_citations,
     record_error,
     to_json_safe,
@@ -87,6 +90,26 @@ def test_normalize_trace_chunks_handles_empty_and_items():
 
     assert [chunk["chunk_id"] for chunk in chunks] == ["c1", "c2"]
     assert all(chunk["source_stage"] == "reranker" for chunk in chunks)
+
+
+def test_record_stage_results_writes_normalized_chunks():
+    trace = create_debug_trace("query")
+
+    record_stage_results(trace, "bm25_results", [{"chunk_id": "c1", "text": "bm25"}], "bm25")
+
+    assert trace["bm25_results"][0]["chunk_id"] == "c1"
+    assert trace["bm25_results"][0]["source_stage"] == "bm25"
+
+
+def test_record_final_context_and_answer():
+    trace = create_debug_trace("query")
+
+    record_final_context(trace, [{"chunk_id": "ctx-1", "text": "context"}])
+    record_final_answer(trace, "answer text")
+
+    assert trace["final_context_chunks"][0]["chunk_id"] == "ctx-1"
+    assert trace["final_context_chunks"][0]["source_stage"] == "final_context"
+    assert trace["final_answer"] == "answer text"
 
 
 def test_mark_stage_not_available_sets_stage_and_warning():

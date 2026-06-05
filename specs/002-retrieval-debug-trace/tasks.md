@@ -305,7 +305,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
 
 # Phase 4：接入现有 RAG 查询流程
 
-## T019 分析现有 RAG 查询入口
+## [X] T019 分析现有 RAG 查询入口
 
 * 文件：
 
@@ -321,7 +321,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
   * 记录哪些阶段可直接拿到结果；
   * 不能重写主流程。
 
-## T020 在查询入口创建 debug_trace
+## [X] T020 在查询入口创建 debug_trace
 
 * 可能文件：
 
@@ -336,7 +336,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
   * 记录开始时间；
   * 确保连续两次查询不会混淆 trace。
 
-## T021 记录 rewritten_query
+## [X] T021 记录 rewritten_query
 
 * 可能文件：
 
@@ -349,7 +349,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
   * 如果没有，则写入 `not_available`；
   * 不为了本 task 新增复杂 query rewrite。
 
-## T022 记录 BM25 results
+## [X] T022 记录 BM25 results
 
 * 可能文件：
 
@@ -362,7 +362,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
   * 如果 BM25 未启用，写入 `not_available`；
   * BM25 记录失败时写入 warning，不中断查询。
 
-## T023 记录 vector results
+## [X] T023 记录 vector results
 
 * 可能文件：
 
@@ -375,7 +375,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
   * 如果向量检索未启用，写入 `not_available`；
   * 失败时记录 `vector_search_failed`。
 
-## T024 记录 RRF results
+## [X] T024 记录 RRF results
 
 * 可能文件：
 
@@ -387,7 +387,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
   * 如果当前项目没有 RRF，则显示 `not_available`；
   * 不为本 task 重写 fusion 架构。
 
-## T025 记录 reranker results
+## [X] T025 记录 reranker results
 
 * 可能文件：
 
@@ -400,7 +400,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
   * 失败时记录 `reranker_failed`；
   * 不影响原回答生成。
 
-## T026 记录 final_context_chunks
+## [X] T026 记录 final_context_chunks
 
 * 可能文件：
 
@@ -413,7 +413,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
   * 必须包含 filename、page、section、chunk_id、score、text_preview；
   * 如果缺少字段，用 `None`。
 
-## T027 记录 final_answer
+## [X] T027 记录 final_answer
 
 * 可能文件：
 
@@ -426,7 +426,7 @@ record_citations(trace: dict, citations: list[Any]) -> None
   * 如果 LLM 失败，记录 `llm_failed`；
   * 不把完整 traceback 直接展示给普通用户。
 
-## T028 记录 elapsed_ms
+## [X] T028 记录 elapsed_ms
 
 * 可能文件：
 

@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from app.llm_client import LLMClient
 
 from app.context_builder import build_retrieval_text
+from app.debug_trace import record_error, record_stage_results
 from app.schemas_v2 import CandidateChunk
 
 logger = logging.getLogger(__name__)
@@ -226,6 +227,7 @@ def hybrid_retrieve_candidates(
     index: "LiteratureIndex",
     llm_client: "LLMClient",
     config: dict,
+    debug_trace: dict | None = None,
 ) -> list[CandidateChunk]:
     retrieval_cfg = (config or {}).get("retrieval", {})
     bm25_top_k = int(retrieval_cfg.get("bm25_top_k", 20))
@@ -236,8 +238,19 @@ def hybrid_retrieve_candidates(
     keywords = expand_keywords(query, llm_client)
     expanded_query = " ".join(keywords)
 
-    vec_hits = _search(index, "vector_search", expanded_query, vec_top_k)
-    bm25_hits = _search(index, "bm25_search", expanded_query, bm25_top_k)
+    try:
+        vec_hits = _search(index, "vector_search", expanded_query, vec_top_k)
+        record_stage_results(debug_trace, "vector_results", vec_hits, "vector")
+    except Exception as exc:
+        record_error(debug_trace, "vector_search_failed", exc)
+        raise
+
+    try:
+        bm25_hits = _search(index, "bm25_search", expanded_query, bm25_top_k)
+        record_stage_results(debug_trace, "bm25_results", bm25_hits, "bm25")
+    except Exception as exc:
+        record_error(debug_trace, "bm25_failed", exc)
+        raise
 
     vector_rank_map = {str(hit["chunk_id"]): rank for rank, hit in enumerate(vec_hits, start=1)}
     bm25_rank_map = {str(hit["chunk_id"]): rank for rank, hit in enumerate(bm25_hits, start=1)}
@@ -295,4 +308,6 @@ def hybrid_retrieve_candidates(
         for parent_id, entry in parent_map.items()
     ]
     candidates.sort(key=lambda candidate: candidate.rrf_score or 0.0, reverse=True)
-    return candidates[:candidate_top_k]
+    candidates = candidates[:candidate_top_k]
+    record_stage_results(debug_trace, "rrf_results", candidates, "rrf")
+    return candidates

@@ -6,27 +6,26 @@
 - Feature 名称：检索调试 Debug Trace
 - 开发基线分支：`V3-DEV`
 - 当前分支：`feature/002-retrieval-debug-trace`
-- 当前阶段：implement 第一批任务
-- 当前任务类型：实现 T001-T018，完成 Debug Trace 核心数据结构、chunk 标准化和 citation 基础映射
-- 本轮修改文件：`app/debug_trace.py`、`tests/test_debug_trace.py`、`specs/002-retrieval-debug-trace/tasks.md`、`CURRENT_TASK.md`、`specs/002-retrieval-debug-trace/PROGRESS.md`
-- 本轮限制：只实现 T001-T018；不接入 RAG 查询流程；不修改 `ui/streamlit_app.py`；不实现 T019-T050；不做 citation verification、claim-level verification、FastAPI、Docker、数据库、多用户、联网下载、GraphRAG 或主流程重写
+- 当前阶段：implement 第二批任务
+- 当前任务类型：实现 T019-T028，将 Debug Trace 旁路接入现有 V2 RAG 查询流程
+- 本轮修改文件：`app/debug_trace.py`、`app/retriever.py`、`app/pipeline_v2.py`、`tests/test_debug_trace.py`、`tests/test_v2_pipeline.py`、`specs/002-retrieval-debug-trace/tasks.md`、`CURRENT_TASK.md`、`specs/002-retrieval-debug-trace/PROGRESS.md`
+- 本轮限制：只实现 T019-T028；不实现 Streamlit Debug Trace 面板；不实现 `session_state` 当前 trace；不做 T041-T050 文档收尾和最终验收；不做 citation verification、claim-level verification、FastAPI、Docker、数据库、多用户、联网下载、GraphRAG 或主流程重写
 
 ## 本轮完成内容
 
-- 完成 T001-T003：同步 Feature 进度文档、更新 CURRENT_TASK、检查 AGENTS.md 的 Feature 002 plan 路径。
-- 完成 T004-T015：新增 `tests/test_debug_trace.py` 和 `app/debug_trace.py`，实现并测试：
-  - `create_debug_trace()`
-  - `normalize_trace_chunk()`
-  - `normalize_trace_chunks()`
-  - `mark_stage_not_available()`
-  - `record_error()`
-  - `to_json_safe()`
-- 完成 T016-T018：实现并测试 citation/evidence 到 `final_context_chunks` 的 `chunk_id` 基础映射：
-  - `normalize_trace_citation()`
-  - `record_citations()`
-  - matched / unmatched 标记
-- 已将 `specs/002-retrieval-debug-trace/tasks.md` 中 T001-T018 标记为 `[X]`。
-- 本阶段未修改现有 RAG 主流程，未修改 Streamlit UI，未引入真实 LLM、Embedding API 或 PDF 文献库依赖。
+- 完成 T019：分析现有查询入口。
+  - Streamlit 文献综合入口调用 `run_synthesis_pipeline()`。
+  - V2 synthesis 调用链为 `hybrid_retrieve_candidates()` → `rerank_candidates()` → `build_v2_context()` → `synthesize_with_citations()`。
+  - 结构化抽取路径仍走 `hybrid_retrieve()`，本批未接入；后续 UI/入口任务再处理。
+- 完成 T020：`run_synthesis_pipeline()` 每次调用创建独立 `debug_trace`，写入 `user_query`、`original_query`、`query_mode` 和开始时间。
+- 完成 T021：当前未新增复杂 query rewrite，`rewritten_query` 保持 `not_available`。
+- 完成 T022-T024：`hybrid_retrieve_candidates()` 以可选 `debug_trace` 旁路记录 BM25、vector 和 RRF results。
+- 完成 T025：pipeline 记录 reranker results。
+- 完成 T026：pipeline 基于 context citations 记录实际 final context chunks。
+- 完成 T027：pipeline 记录 final answer；LLM 阶段异常标记 `llm_failed` 并保留原异常抛出。
+- 完成 T028：pipeline 成功或失败时尽量写入 `elapsed_ms`。
+- Debug Trace 被写入 `SynthesisResult.metadata["debug_trace"]`，旧调用方不传 trace 时仍可正常调用。
+- 已将 `specs/002-retrieval-debug-trace/tasks.md` 中 T019-T028 标记为 `[X]`。
 
 ## Feature 002 目标
 
@@ -42,7 +41,6 @@
 
 ## 当前未完成任务
 
-- T019-T028：接入现有 RAG 查询流程，记录 rewritten query、BM25/vector/RRF/reranker/final context/final answer/elapsed_ms。
 - T029-T036：Streamlit Debug Trace 面板和 Raw JSON 展示。
 - T037-T040：错误处理降级和 `session_state` 当前 trace。
 - T041-T044：用户文档和进度文档后续更新。
@@ -52,7 +50,10 @@
 ## 修改文件
 
 - `app/debug_trace.py`
+- `app/retriever.py`
+- `app/pipeline_v2.py`
 - `tests/test_debug_trace.py`
+- `tests/test_v2_pipeline.py`
 - `specs/002-retrieval-debug-trace/tasks.md`
 - `CURRENT_TASK.md`
 - `specs/002-retrieval-debug-trace/PROGRESS.md`
@@ -63,31 +64,30 @@
 | --- | --- | --- | --- | --- |
 | 2026-06-05 | `feature/002-retrieval-debug-trace` | `bash .specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` | 通过 | `tasks.md` 被 SpecKit 识别 |
 | 2026-06-05 | `feature/002-retrieval-debug-trace` | checklist 统计 | 通过 | `requirements.md` 16/16 完成 |
-| 2026-06-05 | `feature/002-retrieval-debug-trace` | `.venv/bin/python -m py_compile app/debug_trace.py` | 通过 | 语法检查通过 |
-| 2026-06-05 | `feature/002-retrieval-debug-trace` | `.venv/bin/python -m pytest tests/test_debug_trace.py -q` | 通过 | 11 passed |
-| 2026-06-05 | `feature/002-retrieval-debug-trace` | `.venv/bin/python -m pytest` | 通过 | 160 passed |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | `.venv/bin/python -m py_compile app/debug_trace.py app/pipeline_v2.py app/retriever.py app/context_builder.py app/synthesizer.py` | 通过 | 语法检查通过 |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | `.venv/bin/python -m pytest tests/test_debug_trace.py -q` | 通过 | 13 passed |
+| 2026-06-05 | `feature/002-retrieval-debug-trace` | `.venv/bin/python -m pytest` | 通过 | 165 passed |
 
 ## 风险与注意事项
 
-- 当前只完成 Debug Trace 核心 helper 和单元测试，尚未接入 RAG 查询流程。
-- `citations_used` 只做 citation/evidence 与 final context chunk 的 `chunk_id` 映射，不做真假判断、claim-level verification 或完整 citation verification。
-- 后续接入阶段必须保持旧调用方兼容，不得改变 ChromaDB、BM25、parent store 的现有存储格式。
-- 后续 UI 阶段必须保证连续两次查询不混淆上一轮 trace。
+- 本批只接入 V2 synthesis pipeline 的 metadata trace，尚未实现 Streamlit 面板展示。
+- 结构化抽取路径仍走 `hybrid_retrieve()`，本批未改 UI 或结构化抽取入口。
+- `rewritten_query` 当前仍为 `not_available`，因为本批不新增复杂 query rewrite。
+- Debug Trace 失败不应影响正常查询；后续 T037-T040 仍需补充 session/current-trace 降级验证。
 
 ## Git 操作状态
 
 - 开发前 git status 是否干净：是。
-- 是否从正确基线分支创建：是，从 `V3-DEV` 创建。
 - 当前功能分支：`feature/002-retrieval-debug-trace`。
 - 是否执行 git commit：待执行。
 - 是否执行 merge：待执行。
-- 是否执行 push：待执行。
+- 是否执行 push：否，本轮明确不 push。
 
 ## 下一步建议
 
 按用户要求执行标准收尾流程：
 
-1. 提交当前功能分支。
+1. 在功能分支提交本批 T019-T028。
 2. 合并 `feature/002-retrieval-debug-trace` 到 `V3-DEV`。
-3. 合并后重新运行相关测试。
-4. 测试通过后 push `V3-DEV`。
+3. 合并后重新运行测试。
+4. 不执行 push，由用户手动 push `V3-DEV`。

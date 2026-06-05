@@ -98,6 +98,49 @@ def normalize_trace_chunks(raw_chunks: list[Any] | None, source_stage: str) -> l
     return normalized
 
 
+def record_stage_results(
+    trace: dict | None,
+    stage: str,
+    results: list[Any] | None,
+    source_stage: str,
+) -> None:
+    if not isinstance(trace, dict):
+        return
+    try:
+        trace[stage] = normalize_trace_chunks(results, source_stage)
+    except Exception as exc:
+        _warnings(trace).append(f"debug trace stage recording failed: {exc}")
+
+
+def record_final_context(trace: dict | None, chunks: list[Any] | None) -> None:
+    if not isinstance(trace, dict):
+        return
+    try:
+        trace["final_context_chunks"] = normalize_trace_chunks(chunks, "final_context")
+    except Exception as exc:
+        _warnings(trace).append(f"debug trace final context recording failed: {exc}")
+
+
+def record_final_answer(trace: dict | None, answer: Any) -> None:
+    if not isinstance(trace, dict):
+        return
+    try:
+        trace["final_answer"] = None if answer is None else str(answer)
+    except Exception as exc:
+        _warnings(trace).append(f"debug trace answer recording failed: {exc}")
+
+
+def record_elapsed_ms(trace: dict | None, started_at: float) -> None:
+    if not isinstance(trace, dict):
+        return
+    try:
+        from time import perf_counter
+
+        trace["elapsed_ms"] = max(0, int((perf_counter() - started_at) * 1000))
+    except Exception as exc:
+        _warnings(trace).append(f"debug trace elapsed time recording failed: {exc}")
+
+
 def mark_stage_not_available(trace: dict, stage: str, reason: str | None = None) -> None:
     if not isinstance(trace, dict):
         return
